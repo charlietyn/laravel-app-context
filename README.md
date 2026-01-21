@@ -1,8 +1,8 @@
 # Laravel App Context
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/charlietyn/laravel-app-context.svg?style=flat-square)](https://packagist.org/packages/charlietyn/laravel-app-context)
-[![Total Downloads](https://img.shields.io/packagist/dt/charlietyn/laravel-app-context.svg?style=flat-square)](https://packagist.org/packages/charlietyn/laravel-app-context)
-[![License](https://img.shields.io/packagist/l/charlietyn/laravel-app-context.svg?style=flat-square)](https://packagist.org/packages/charlietyn/laravel-app-context)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/ronu/laravel-app-context.svg?style=flat-square)](https://packagist.org/packages/ronu/laravel-app-context)
+[![Total Downloads](https://img.shields.io/packagist/dt/ronu/laravel-app-context.svg?style=flat-square)](https://packagist.org/packages/ronu/laravel-app-context)
+[![License](https://img.shields.io/packagist/l/ronu/laravel-app-context.svg?style=flat-square)](https://packagist.org/packages/ronu/laravel-app-context)
 
 Multi-channel application context management for Laravel with JWT and API Key authentication.
 
@@ -26,7 +26,7 @@ Multi-channel application context management for Laravel with JWT and API Key au
 ## Installation
 
 ```bash
-composer require charlietyn/laravel-app-context
+composer require ronu/laravel-app-context
 ```
 
 Publish the configuration:
