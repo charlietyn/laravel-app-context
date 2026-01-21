@@ -6,6 +6,8 @@
 
 Multi-channel application context management for Laravel with JWT and API Key authentication.
 
+> Spanish documentation: [README.es.md](README.es.md)
+
 ## Features
 
 - 🔐 **Multi-Auth Support**: JWT, API Key, and Anonymous authentication
@@ -191,6 +193,11 @@ The JWT verifier explicitly rejects the `none` algorithm (CVE-2015-9235):
 ],
 ```
 
+### Audience Claim Enforcement
+
+When `JWT_VERIFY_AUD=true` (default), tokens must include an `aud` claim.
+Channel binding is enforced by middleware to ensure the token audience matches the resolved channel.
+
 ### Audience Binding
 
 Tokens are bound to their intended channel:
@@ -208,6 +215,7 @@ Multi-tenant isolation prevents cross-tenant access:
 
 - Argon2id hashing (recommended) or Bcrypt
 - IP allowlist with CIDR support
+- Optional global enforcement of IP allowlists (`APP_CONTEXT_IP_ALLOWLIST=true`)
 - Automatic expiration
 - Usage tracking
 
@@ -226,16 +234,29 @@ JWT_ALGO=RS256
 JWT_ISSUER=https://myapp.com
 JWT_TTL=3600
 JWT_BLACKLIST_ENABLED=true
+JWT_DEV_FALLBACK=true
+JWT_DEV_ALGO=HS256
+JWT_DEV_SECRET=base64:your-app-key
 
 # API Key
 API_KEY_HASH_ALGO=argon2id
 API_KEY_ROTATION_DAYS=90
+APP_CONTEXT_IP_ALLOWLIST=false
 
 # Rate Limiting
 RATE_LIMIT_MOBILE_GLOBAL=60/m
 RATE_LIMIT_ADMIN_GLOBAL=120/m
 RATE_LIMIT_PARTNER_GLOBAL=600/m
 ```
+
+### Development Fallback for JWT Keys
+
+In local/staging environments, if RSA key files are missing and `JWT_DEV_FALLBACK=true`,
+the package falls back to symmetric signing (default `HS256`) using `JWT_DEV_SECRET`,
+`APP_KEY`, or a `dev-secret` fallback. This avoids blocking development setups that don't
+have key files yet.
+
+> **Recommendation:** Use RSA keys in production and disable the fallback there.
 
 ## Testing
 

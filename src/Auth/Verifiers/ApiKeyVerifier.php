@@ -27,12 +27,17 @@ final class ApiKeyVerifier implements VerifierInterface
     private readonly string $clientIdHeader;
     private readonly string $apiKeyHeader;
     private readonly string $hashAlgorithm;
+    private readonly bool $enforceIpAllowlist;
 
     public function __construct(array $config)
     {
-        $this->clientIdHeader = $config['headers']['client_id'] ?? 'X-Client-Id';
-        $this->apiKeyHeader = $config['headers']['api_key'] ?? 'X-Api-Key';
-        $this->hashAlgorithm = $config['hash_algorithm'] ?? 'argon2id';
+        $apiKeyConfig = $config['api_key'] ?? $config;
+        $securityConfig = $config['security'] ?? [];
+
+        $this->clientIdHeader = $apiKeyConfig['headers']['client_id'] ?? 'X-Client-Id';
+        $this->apiKeyHeader = $apiKeyConfig['headers']['api_key'] ?? 'X-Api-Key';
+        $this->hashAlgorithm = $apiKeyConfig['hash_algorithm'] ?? 'argon2id';
+        $this->enforceIpAllowlist = $securityConfig['enforce_ip_allowlist'] ?? false;
     }
 
     /**
@@ -215,9 +220,9 @@ final class ApiKeyVerifier implements VerifierInterface
      */
     private function isIpAllowed(string $ip, ApiClient $client): bool
     {
-        // If no allowlist, allow all
+        // If no allowlist, allow all unless enforcement is enabled
         if (empty($client->ip_allowlist)) {
-            return true;
+            return ! $this->enforceIpAllowlist;
         }
 
         foreach ($client->ip_allowlist as $allowed) {

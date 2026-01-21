@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Charlietyn\AppContext\Middleware;
 
 use Charlietyn\AppContext\Context\AppContext;
+use Charlietyn\AppContext\Exceptions\AuthorizationException;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Middleware: Require All Scopes
@@ -33,8 +33,8 @@ class RequireAllScopes
         /** @var AppContext $context */
         $context = $request->attributes->get('app_context');
 
-        if (!$context) {
-            throw new HttpException(500, 'App context not resolved');
+        if (! $context) {
+            throw AuthorizationException::insufficientPermissions();
         }
 
         // If no scopes specified, continue
@@ -45,16 +45,17 @@ class RequireAllScopes
         // Verify ALL scopes (AND logic)
         $missingScopes = [];
         foreach ($scopes as $scope) {
-            if (!$context->requires($scope)) {
+            if (! $context->hasScope($scope) && ! $context->hasCapability($scope)) {
                 $missingScopes[] = $scope;
             }
         }
 
-        if (!empty($missingScopes)) {
-            $authType = $context->authMode === 'api_key' ? 'capabilities' : 'scopes';
-            throw new HttpException(
-                403,
-                "Missing {$authType}: " . implode(', ', $missingScopes)
+        if (! empty($missingScopes)) {
+            $authType = $context->getAuthMode() === 'api_key' ? 'capabilities' : 'scopes';
+
+            throw new AuthorizationException(
+                "Missing required {$authType}: " . implode(', ', $missingScopes),
+                $missingScopes
             );
         }
 
