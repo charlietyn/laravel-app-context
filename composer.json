@@ -1,0 +1,63 @@
+{
+    "name": "charlietyn/laravel-app-context",
+    "description": "Multi-channel application context management for Laravel with JWT and API Key authentication",
+    "keywords": [
+        "laravel",
+        "multi-tenant",
+        "authentication",
+        "jwt",
+        "api-key",
+        "middleware",
+        "security",
+        "context"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Charlietyn",
+            "email": "charlietyn@example.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0|^12.0",
+        "illuminate/http": "^11.0|^12.0",
+        "illuminate/routing": "^11.0|^12.0",
+        "illuminate/cache": "^11.0|^12.0",
+        "php-open-source-saver/jwt-auth": "^2.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0",
+        "phpunit/phpunit": "^11.0",
+        "mockery/mockery": "^1.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Charlietyn\\AppContext\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Charlietyn\\AppContext\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "test-coverage": "vendor/bin/phpunit --coverage-html coverage"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Charlietyn\\AppContext\\AppContextServiceProvider"
+            ],
+            "aliases": {
+                "AppContext": "Charlietyn\\AppContext\\Facades\\AppContext"
+            }
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

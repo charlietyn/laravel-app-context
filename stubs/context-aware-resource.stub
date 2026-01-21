@@ -1,0 +1,57 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Charlietyn\AppContext\Resources\ContextAwareResource;
+use Illuminate\Http\Request;
+
+class {{ class }} extends ContextAwareResource
+{
+    /**
+     * Public fields (default for all channels).
+     */
+    protected function toPublicArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            // Add public fields here
+        ];
+    }
+
+    /**
+     * Full fields (admin channel).
+     */
+    protected function toFullArray(Request $request): array
+    {
+        return [
+            ...$this->toPublicArray($request),
+            // Add admin-only fields here
+            'created_at' => $this->created_at?->toIso8601String(),
+            'updated_at' => $this->updated_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Mobile-specific fields.
+     */
+    protected function toMobileArray(Request $request): array
+    {
+        return [
+            ...$this->toPublicArray($request),
+            // Add mobile-specific fields here
+        ];
+    }
+
+    /**
+     * Partner/B2B-specific fields.
+     */
+    protected function toPartnerArray(Request $request): array
+    {
+        return [
+            ...$this->toPublicArray($request),
+            // Add partner-specific fields here
+        ];
+    }
+}
