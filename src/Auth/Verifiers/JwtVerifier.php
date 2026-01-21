@@ -37,6 +37,7 @@ final class JwtVerifier implements VerifierInterface
     private readonly bool $verifyIssuer;
     private readonly bool $verifyAudience;
     private readonly ?string $expectedIssuer;
+    private readonly array $tokenSources;
 
     public function __construct(
         private readonly JWTAuth $jwtAuth,
@@ -48,6 +49,7 @@ final class JwtVerifier implements VerifierInterface
         $this->verifyIssuer = $config['verify_iss'] ?? true;
         $this->verifyAudience = $config['verify_aud'] ?? true;
         $this->expectedIssuer = $config['issuer'] ?? null;
+        $this->tokenSources = $config['token_sources'] ?? ['header', 'query', 'cookie'];
     }
 
     /**
@@ -183,20 +185,25 @@ final class JwtVerifier implements VerifierInterface
      */
     private function extractToken(Request $request): ?string
     {
-        // Try Authorization header first
-        $header = $request->header('Authorization', '');
-        if (str_starts_with($header, 'Bearer ')) {
-            return substr($header, 7);
+        $sources = array_map('strtolower', $this->tokenSources);
+
+        if (in_array('header', $sources, true)) {
+            $header = $request->header('Authorization', '');
+            if (str_starts_with($header, 'Bearer ')) {
+                return substr($header, 7);
+            }
         }
 
-        // Try query parameter
-        if ($token = $request->query('token')) {
-            return $token;
+        if (in_array('query', $sources, true)) {
+            if ($token = $request->query('token')) {
+                return $token;
+            }
         }
 
-        // Try cookie
-        if ($token = $request->cookie('token')) {
-            return $token;
+        if (in_array('cookie', $sources, true)) {
+            if ($token = $request->cookie('token')) {
+                return $token;
+            }
         }
 
         return null;

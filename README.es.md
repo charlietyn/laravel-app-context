@@ -167,6 +167,34 @@ Con `JWT_VERIFY_AUD=true`, los tokens deben incluir el claim `aud`.
 - Opción de enforcement global (`APP_CONTEXT_IP_ALLOWLIST=true`)
 - Expiración automática y tracking de uso
 
+## Revisión avanzada (mejoras y defectos)
+
+### Mejoras recomendadas (seguridad/operación)
+
+- **Bloqueo por defecto y detección estricta en entornos sensibles**: habilita `APP_CONTEXT_DENY_BY_DEFAULT=true` y considera `APP_CONTEXT_DETECTION=strict` para forzar que subdominio y path coincidan en el mismo canal, reduciendo riesgos de bypass por enrutamiento ambiguo.【F:config/app-context.php†L16-L63】
+- **Endurecer JWT en producción**: usa RS256 con llaves dedicadas, `verify_iss`/`verify_aud` activos y desactiva el fallback de desarrollo (`JWT_DEV_FALLBACK=false`).【F:config/app-context.php†L284-L330】
+- **Auditoría sin filtrar datos sensibles**: deja `include_request_body=false` y usa la lista de `sensitive_headers` para evitar leaks en logs; habilita la auditoría sólo cuando haya un pipeline seguro de logging.【F:config/app-context.php†L390-L429】
+- **IP allowlist con proxies confiables**: si aplicas allowlists en API Keys, asegúrate de configurar `TrustProxies` en Laravel para que `Request::ip()` sea fiable; el paquete toma la IP directamente del request.【F:src/Auth/Verifiers/ApiKeyVerifier.php†L101-L108】
+
+### Defectos y limitaciones actuales
+
+- **Allowlist de IP limitada a IPv4**: la validación CIDR usa `ip2long`, por lo que las direcciones IPv6 no se evalúan correctamente.【F:src/Auth/Verifiers/ApiKeyVerifier.php†L214-L228】
+- **`rate_limit_profile` no se usa**: aunque el canal define `rate_limit_profile`, el middleware toma el perfil por el ID del canal (`app-context.rate_limits.{canal}`), por lo que el parámetro no tiene efecto hoy.【F:config/app-context.php†L80-L161】【F:src/Middleware/RateLimitByContext.php†L73-L92】
+- **`usage_count` no es atómico**: el conteo se incrementa con `usage_count + 1` en un `dispatch()->afterResponse()`, lo que puede perder incrementos bajo alta concurrencia.【F:src/Auth/Verifiers/ApiKeyVerifier.php†L233-L246】
+
+### Plan de remediación (priorizado)
+
+1. **Correctitud de rate limiting**
+   - Conectar `rate_limit_profile` y el posible `rate_limit_tier` a la selección real del limiter (evitar hardcode por canal).【F:config/app-context.php†L80-L205】【F:src/Middleware/RateLimitByContext.php†L73-L122】
+   - Implementar o eliminar `burst` para evitar una superficie de configuración engañosa.【F:config/app-context.php†L167-L245】【F:src/Middleware/RateLimitByContext.php†L73-L122】
+2. **Seguridad y telemetría de API Keys**
+   - Reemplazar `usage_count + 1` por un incremento atómico en DB (y considerar queue).【F:src/Auth/Verifiers/ApiKeyVerifier.php†L233-L246】
+   - Añadir soporte IPv6 a los CIDR (p. ej. `inet_pton`) o documentar claramente la limitación a IPv4.【F:src/Auth/Verifiers/ApiKeyVerifier.php†L214-L228】
+3. **Endurecimiento operativo de JWT**
+   - Considerar desactivar lectura de tokens por query/cookie en producción para reducir exposición (preferir Authorization header).【F:src/Auth/Verifiers/JwtVerifier.php†L150-L175】
+4. **Claridad del contexto anónimo/default**
+   - Definir un canal `default` explícito o forzar `deny_by_default` en producción para evitar comportamiento implícito en rutas no mapeadas.【F:src/Middleware/ResolveAppContext.php†L44-L66】
+
 ## Configuración
 
 ### Variables de entorno
