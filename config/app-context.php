@@ -17,6 +17,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Default Channel (when deny_by_default = false)
+    |--------------------------------------------------------------------------
+    |
+    | If no channel matches and deny_by_default is disabled, the resolver will
+    | create an anonymous context for this channel ID.
+    |
+    */
+    'default_channel' => env('APP_CONTEXT_DEFAULT_CHANNEL', 'default'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Domain
     |--------------------------------------------------------------------------
     |
@@ -315,6 +326,12 @@ return [
         // Whitelist of allowed algorithms (prevents algorithm confusion attacks)
         // CRITICAL: Never include 'none' in this list
         'allowed_algorithms' => ['HS256', 'RS256', 'RS384', 'RS512'],
+
+        // Token sources to accept (header, query, cookie)
+        'token_sources' => array_filter(
+            array_map('trim', explode(',', env('JWT_TOKEN_SOURCES', 'header,query,cookie'))),
+            static fn(string $value): bool => $value !== ''
+        ),
 
         // Development fallback when RSA keys are missing
         'dev_fallback' => [

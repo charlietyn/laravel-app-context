@@ -51,6 +51,26 @@ class RateLimitByContext
         // Get the rate limit key
         $key = $this->getRateLimitKey($context, $config['by']);
 
+        if (! empty($config['burst'])) {
+            [$burstAttempts, $burstDecay] = $this->parseLimit($config['burst']);
+            $burstKey = "{$key}:burst";
+
+            if ($this->limiter->tooManyAttempts($burstKey, $burstAttempts)) {
+                $retryAfter = $this->limiter->availableIn($burstKey);
+
+                throw new ThrottleRequestsException(
+                    message: 'Too Many Attempts.',
+                    headers: [
+                        'Retry-After' => $retryAfter,
+                        'X-RateLimit-Limit' => $burstAttempts,
+                        'X-RateLimit-Remaining' => 0,
+                    ]
+                );
+            }
+
+            $this->limiter->hit($burstKey, $burstDecay);
+        }
+
         // Check rate limit
         if ($this->limiter->tooManyAttempts($key, $maxAttempts)) {
             $retryAfter = $this->limiter->availableIn($key);
@@ -84,10 +104,17 @@ class RateLimitByContext
     protected function getRateLimitConfig(AppContext $context, Request $request): ?array
     {
         $channelId = $context->getAppId();
-        $profile = config("app-context.rate_limits.{$channelId}");
+        $channelConfig = config("app-context.channels.{$channelId}", []);
+        $profileId = $channelConfig['rate_limit_profile'] ?? $channelId;
+        $profile = config("app-context.rate_limits.{$profileId}");
 
         if ($profile === null) {
             return null;
+        }
+
+        $rateLimitTier = $context->getMetadataValue('rate_limit_tier');
+        if ($rateLimitTier !== null && isset($profile['tiers'][$rateLimitTier])) {
+            $profile = array_replace_recursive($profile, $profile['tiers'][$rateLimitTier]);
         }
 
         // Check for endpoint-specific limit
@@ -100,6 +127,7 @@ class RateLimitByContext
                 return [
                     'limit' => $limit,
                     'by' => $profile['by'] ?? 'ip',
+                    'burst' => $profile['burst'] ?? null,
                 ];
             }
         }
@@ -112,6 +140,7 @@ class RateLimitByContext
         return [
             'limit' => $limit,
             'by' => $profile['by'] ?? 'ip',
+            'burst' => $profile['burst'] ?? null,
         ];
     }
 

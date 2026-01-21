@@ -45,7 +45,7 @@ class ResolveAppContext
         // If no context and not denying, create a default
         if ($context === null) {
             $context = AppContext::anonymous(
-                appId: 'default',
+                appId: (string) config('app-context.default_channel', 'default'),
                 ipAddress: $request->ip(),
             );
         }

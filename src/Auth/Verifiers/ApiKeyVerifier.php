@@ -8,6 +8,7 @@ use Charlietyn\AppContext\Contracts\VerifierInterface;
 use Charlietyn\AppContext\Exceptions\AuthenticationException;
 use Charlietyn\AppContext\Models\ApiClient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -247,13 +248,61 @@ final class ApiKeyVerifier implements VerifierInterface
     {
         [$subnet, $bits] = explode('/', $cidr);
 
-        $ip = ip2long($ip);
-        $subnet = ip2long($subnet);
-        $mask = -1 << (32 - (int) $bits);
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)
+            || filter_var($subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)
+        ) {
+            return $this->ipInCidrV6($ip, $subnet, (int) $bits);
+        }
 
-        $subnet &= $mask;
+        return $this->ipInCidrV4($ip, $subnet, (int) $bits);
+    }
 
-        return ($ip & $mask) === $subnet;
+    /**
+     * Check if IPv4 is in CIDR range.
+     */
+    private function ipInCidrV4(string $ip, string $subnet, int $bits): bool
+    {
+        $ipLong = ip2long($ip);
+        $subnetLong = ip2long($subnet);
+
+        if ($ipLong === false || $subnetLong === false) {
+            return false;
+        }
+
+        $mask = -1 << (32 - $bits);
+        $subnetLong &= $mask;
+
+        return ($ipLong & $mask) === $subnetLong;
+    }
+
+    /**
+     * Check if IPv6 is in CIDR range.
+     */
+    private function ipInCidrV6(string $ip, string $subnet, int $bits): bool
+    {
+        $ipPacked = inet_pton($ip);
+        $subnetPacked = inet_pton($subnet);
+
+        if ($ipPacked === false || $subnetPacked === false) {
+            return false;
+        }
+
+        $bytes = intdiv($bits, 8);
+        $remainderBits = $bits % 8;
+
+        if ($bytes > 0 && substr($ipPacked, 0, $bytes) !== substr($subnetPacked, 0, $bytes)) {
+            return false;
+        }
+
+        if ($remainderBits === 0) {
+            return true;
+        }
+
+        $mask = ~(0xff >> $remainderBits) & 0xff;
+        $ipByte = ord($ipPacked[$bytes]);
+        $subnetByte = ord($subnetPacked[$bytes]);
+
+        return ($ipByte & $mask) === ($subnetByte & $mask);
     }
 
     /**
@@ -263,10 +312,10 @@ final class ApiKeyVerifier implements VerifierInterface
     {
         // Use a queue job or async update to not block the request
         dispatch(function () use ($client, $request) {
-            $client->update([
+            $client->newQuery()->whereKey($client->id)->update([
                 'last_used_at' => now(),
                 'last_used_ip' => $request->ip(),
-                'usage_count' => $client->usage_count + 1,
+                'usage_count' => DB::raw('usage_count + 1'),
             ]);
         })->afterResponse();
     }
