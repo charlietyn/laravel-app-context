@@ -1,0 +1,248 @@
+# Laravel App Context
+
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/charlietyn/laravel-app-context.svg?style=flat-square)](https://packagist.org/packages/charlietyn/laravel-app-context)
+[![Total Downloads](https://img.shields.io/packagist/dt/charlietyn/laravel-app-context.svg?style=flat-square)](https://packagist.org/packages/charlietyn/laravel-app-context)
+[![License](https://img.shields.io/packagist/l/charlietyn/laravel-app-context.svg?style=flat-square)](https://packagist.org/packages/charlietyn/laravel-app-context)
+
+Multi-channel application context management for Laravel with JWT and API Key authentication.
+
+## Features
+
+- 🔐 **Multi-Auth Support**: JWT, API Key, and Anonymous authentication
+- 🎯 **Channel-Based Routing**: Auto-detect channels from subdomain or path
+- 🛡️ **Security First**: Algorithm confusion prevention, blacklist, tenant binding
+- 📊 **Rate Limiting**: Context-aware rate limiting per channel
+- 📝 **Audit Logging**: Automatic context injection into all logs
+- 🔑 **Scope/Capability System**: Wildcard support for permissions
+
+## Requirements
+
+- PHP 8.2+
+- Laravel 11.0+ or 12.0+
+- php-open-source-saver/jwt-auth 2.0+
+
+## Installation
+
+```bash
+composer require charlietyn/laravel-app-context
+```
+
+Publish the configuration:
+
+```bash
+php artisan vendor:publish --tag=app-context-config
+```
+
+Publish and run migrations:
+
+```bash
+php artisan vendor:publish --tag=app-context-migrations
+php artisan migrate
+```
+
+## Quick Start
+
+### 1. Configure Channels
+
+Edit `config/app-context.php` to define your channels:
+
+```php
+'channels' => [
+    'mobile' => [
+        'subdomains' => ['mobile', 'm'],
+        'path_prefixes' => ['/mobile'],
+        'auth_mode' => 'jwt',
+        'jwt_audience' => 'mobile',
+        'allowed_scopes' => ['mobile:*', 'user:profile:*'],
+    ],
+    
+    'admin' => [
+        'subdomains' => ['admin'],
+        'path_prefixes' => ['/api'],
+        'auth_mode' => 'jwt',
+        'jwt_audience' => 'admin',
+        'allowed_scopes' => ['admin:*'],
+    ],
+    
+    'partner' => [
+        'subdomains' => ['api-partners'],
+        'path_prefixes' => ['/partner'],
+        'auth_mode' => 'api_key',
+        'allowed_capabilities' => ['partner:*'],
+    ],
+],
+```
+
+### 2. Apply Middleware
+
+Add the middleware group to your routes:
+
+```php
+// routes/api.php
+Route::middleware(['app-context'])->group(function () {
+    Route::get('/users', [UserController::class, 'index']);
+});
+
+// Or use individual middleware
+Route::middleware([
+    'app.context',      // Resolve context
+    'app.auth',         // Authenticate
+    'app.binding',      // Enforce bindings
+    'app.throttle',     // Rate limit
+    'app.audit',        // Audit logging
+])->group(function () {
+    // ...
+});
+```
+
+### 3. Require Scopes
+
+```php
+Route::middleware(['app.scope:admin:users:read'])
+    ->get('/api/users', [UserController::class, 'index']);
+
+Route::middleware(['app.scope:admin:users:write,admin:users:delete'])
+    ->delete('/api/users/{id}', [UserController::class, 'destroy']);
+```
+
+## Usage
+
+### Accessing AppContext
+
+```php
+use Charlietyn\AppContext\Facades\AppContext;
+
+// Get current context
+$context = AppContext::current();
+
+// Check authentication
+if ($context->isAuthenticated()) {
+    $userId = $context->getUserId();
+}
+
+// Check permissions
+if ($context->hasScope('admin:users:read')) {
+    // ...
+}
+
+// Require permission (throws exception if missing)
+$context->requires('admin:export:run');
+```
+
+### In Controllers
+
+```php
+use Charlietyn\AppContext\Context\AppContext;
+
+class UserController extends Controller
+{
+    public function index(AppContext $context)
+    {
+        // Context is injected via DI
+        $context->requires('admin:users:read');
+        
+        return User::query()
+            ->when($context->getTenantId(), fn($q, $tid) => $q->where('tenant_id', $tid))
+            ->get();
+    }
+}
+```
+
+### API Key Management
+
+```bash
+# Generate a new API key
+php artisan app-context:generate-key "Partner Company" \
+    --channel=partner \
+    --capabilities=partner:orders:create \
+    --capabilities=partner:inventory:read
+
+# List all clients
+php artisan app-context:list-clients
+
+# Revoke a key
+php artisan app-context:revoke-key partner-company_abc123
+```
+
+## Middleware Pipeline
+
+The recommended middleware order:
+
+```
+1. ResolveAppContext    → Detect channel from host/path
+2. AuthenticateChannel  → JWT/API Key authentication
+3. EnforceContextBinding→ Validate audience/tenant
+4. RateLimitByContext   → Apply rate limits
+5. InjectAuditContext   → Inject context into logs
+6. RequireScope         → Check permissions (per-route)
+```
+
+## Security Features
+
+### Algorithm Confusion Prevention
+
+The JWT verifier explicitly rejects the `none` algorithm (CVE-2015-9235):
+
+```php
+// config/app-context.php
+'jwt' => [
+    'allowed_algorithms' => ['HS256', 'RS256', 'RS384', 'RS512'],
+    // NEVER include 'none' here
+],
+```
+
+### Audience Binding
+
+Tokens are bound to their intended channel:
+
+- Token with `aud=mobile` cannot access `/api/*` (admin channel)
+- Token with `aud=admin` cannot access `/mobile/*`
+
+### Tenant Binding
+
+Multi-tenant isolation prevents cross-tenant access:
+
+- Token with `tid=tenant_1` cannot access resources of `tenant_2`
+
+### API Key Security
+
+- Argon2id hashing (recommended) or Bcrypt
+- IP allowlist with CIDR support
+- Automatic expiration
+- Usage tracking
+
+## Configuration
+
+### Environment Variables
+
+```env
+# Core
+APP_CONTEXT_DOMAIN=myapp.com
+APP_CONTEXT_DETECTION=auto
+APP_CONTEXT_DENY_BY_DEFAULT=true
+
+# JWT
+JWT_ALGO=RS256
+JWT_ISSUER=https://myapp.com
+JWT_TTL=3600
+JWT_BLACKLIST_ENABLED=true
+
+# API Key
+API_KEY_HASH_ALGO=argon2id
+API_KEY_ROTATION_DAYS=90
+
+# Rate Limiting
+RATE_LIMIT_MOBILE_GLOBAL=60/m
+RATE_LIMIT_ADMIN_GLOBAL=120/m
+RATE_LIMIT_PARTNER_GLOBAL=600/m
+```
+
+## Testing
+
+```bash
+composer test
+```
+
+## License
+
+The MIT License (MIT). Please see [License File](LICENSE) for more information.
