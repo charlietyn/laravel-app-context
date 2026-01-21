@@ -219,6 +219,34 @@ Multi-tenant isolation prevents cross-tenant access:
 - Automatic expiration
 - Usage tracking
 
+## Advanced Review (Improvements & Defects)
+
+### Recommended improvements (security/operations)
+
+- **Deny-by-default and strict detection in sensitive environments**: enable `APP_CONTEXT_DENY_BY_DEFAULT=true` and consider `APP_CONTEXT_DETECTION=strict` to require subdomain + path alignment, reducing ambiguous routing bypasses.【F:config/app-context.php†L16-L63】
+- **Harden JWT for production**: use RS256 with dedicated keys, keep `verify_iss`/`verify_aud` enabled, and disable the dev fallback (`JWT_DEV_FALLBACK=false`).【F:config/app-context.php†L284-L330】
+- **Safe auditing defaults**: keep `include_request_body=false` and rely on `sensitive_headers` redaction to avoid leaking secrets; enable audit logging only with a secure log pipeline.【F:config/app-context.php†L390-L429】
+- **Trusted proxies for IP allowlists**: if you enforce IP allowlists for API keys, ensure Laravel `TrustProxies` is configured because the package uses `Request::ip()` directly.【F:src/Auth/Verifiers/ApiKeyVerifier.php†L101-L108】
+
+### Known defects/limitations
+
+- **IP allowlist is IPv4-only**: CIDR validation relies on `ip2long`, so IPv6 ranges are not handled correctly.【F:src/Auth/Verifiers/ApiKeyVerifier.php†L214-L228】
+- **`rate_limit_profile` is unused**: channels define `rate_limit_profile`, but the middleware selects limits by channel ID (`app-context.rate_limits.{channel}`), so the parameter has no effect today.【F:config/app-context.php†L80-L161】【F:src/Middleware/RateLimitByContext.php†L73-L92】
+- **Non-atomic `usage_count` updates**: API key usage increments use `usage_count + 1` in an `afterResponse` dispatch, which can drop increments under high concurrency.【F:src/Auth/Verifiers/ApiKeyVerifier.php†L233-L246】
+
+### Remediation plan (prioritized)
+
+1. **Rate limiting correctness**
+   - Wire `rate_limit_profile` and optional `rate_limit_tier` to actual limiter selection (avoid hardcoding to channel ID).【F:config/app-context.php†L80-L205】【F:src/Middleware/RateLimitByContext.php†L73-L122】
+   - Implement or remove `burst` to avoid a misleading configuration surface.【F:config/app-context.php†L167-L245】【F:src/Middleware/RateLimitByContext.php†L73-L122】
+2. **API key safety and telemetry**
+   - Replace non-atomic `usage_count + 1` with a DB atomic increment (and consider a queue).【F:src/Auth/Verifiers/ApiKeyVerifier.php†L233-L246】
+   - Add IPv6 support to CIDR checks (e.g., `inet_pton`) or document IPv4-only constraints clearly.【F:src/Auth/Verifiers/ApiKeyVerifier.php†L214-L228】
+3. **JWT operational hardening**
+   - Consider disabling query/cookie token parsing in production to reduce token leakage risk (prefer Authorization header only).【F:src/Auth/Verifiers/JwtVerifier.php†L150-L175】
+4. **Anonymous/default context clarity**
+   - Define an explicit `default` channel or enforce `deny_by_default` in production to avoid implicit behavior for unmapped routes.【F:src/Middleware/ResolveAppContext.php†L44-L66】
+
 ## Configuration
 
 ### Environment Variables
