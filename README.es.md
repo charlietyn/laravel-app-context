@@ -182,19 +182,6 @@ Con `JWT_VERIFY_AUD=true`, los tokens deben incluir el claim `aud`.
 - **`rate_limit_profile` no se usa**: aunque el canal define `rate_limit_profile`, el middleware toma el perfil por el ID del canal (`app-context.rate_limits.{canal}`), por lo que el parámetro no tiene efecto hoy.【F:config/app-context.php†L80-L161】【F:src/Middleware/RateLimitByContext.php†L73-L92】
 - **`usage_count` no es atómico**: el conteo se incrementa con `usage_count + 1` en un `dispatch()->afterResponse()`, lo que puede perder incrementos bajo alta concurrencia.【F:src/Auth/Verifiers/ApiKeyVerifier.php†L233-L246】
 
-### Plan de remediación (priorizado)
-
-1. **Correctitud de rate limiting**
-   - Conectar `rate_limit_profile` y el posible `rate_limit_tier` a la selección real del limiter (evitar hardcode por canal).【F:config/app-context.php†L80-L205】【F:src/Middleware/RateLimitByContext.php†L73-L122】
-   - Implementar o eliminar `burst` para evitar una superficie de configuración engañosa.【F:config/app-context.php†L167-L245】【F:src/Middleware/RateLimitByContext.php†L73-L122】
-2. **Seguridad y telemetría de API Keys**
-   - Reemplazar `usage_count + 1` por un incremento atómico en DB (y considerar queue).【F:src/Auth/Verifiers/ApiKeyVerifier.php†L233-L246】
-   - Añadir soporte IPv6 a los CIDR (p. ej. `inet_pton`) o documentar claramente la limitación a IPv4.【F:src/Auth/Verifiers/ApiKeyVerifier.php†L214-L228】
-3. **Endurecimiento operativo de JWT**
-   - Considerar desactivar lectura de tokens por query/cookie en producción para reducir exposición (preferir Authorization header).【F:src/Auth/Verifiers/JwtVerifier.php†L150-L175】
-4. **Claridad del contexto anónimo/default**
-   - Definir un canal `default` explícito o forzar `deny_by_default` en producción para evitar comportamiento implícito en rutas no mapeadas.【F:src/Middleware/ResolveAppContext.php†L44-L66】
-
 ## Configuración
 
 ### Variables de entorno
