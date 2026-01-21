@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Auth\Authenticators;
+namespace Ronu\AppContext\Auth\Authenticators;
 
-use Charlietyn\AppContext\Context\AppContext;
-use Charlietyn\AppContext\Contracts\AuthenticatorInterface;
+use Ronu\AppContext\Context\AppContext;
+use Ronu\AppContext\Contracts\AuthenticatorInterface;
 use Illuminate\Http\Request;
 
 /**

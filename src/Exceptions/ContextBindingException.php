@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Exceptions;
+namespace Ronu\AppContext\Exceptions;
 
 /**
  * Exception thrown when context binding validation fails.

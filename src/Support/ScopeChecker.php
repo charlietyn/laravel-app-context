@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Support;
+namespace Ronu\AppContext\Support;
 
 /**
  * Utility class for checking scopes and capabilities with wildcard support.

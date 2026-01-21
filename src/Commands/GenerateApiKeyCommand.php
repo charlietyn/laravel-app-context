@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Commands;
+namespace Ronu\AppContext\Commands;
 
-use Charlietyn\AppContext\Auth\Verifiers\ApiKeyVerifier;
-use Charlietyn\AppContext\Models\ApiClient;
+use Ronu\AppContext\Auth\Verifiers\ApiKeyVerifier;
+use Ronu\AppContext\Models\ApiClient;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 

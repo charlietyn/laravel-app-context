@@ -108,7 +108,7 @@ Route::middleware(['app.scope:admin:users:write,admin:users:delete'])
 ### Acceso a AppContext
 
 ```php
-use Charlietyn\AppContext\Facades\AppContext;
+use Ronu\AppContext\Facades\AppContext;
 
 $context = AppContext::current();
 
@@ -124,7 +124,7 @@ if ($context->hasScope('admin:users:read')) {
 ### En controladores
 
 ```php
-use Charlietyn\AppContext\Context\AppContext;
+use Ronu\AppContext\Context\AppContext;
 
 class UserController extends Controller
 {

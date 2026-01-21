@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Auth\Guards;
+namespace Ronu\AppContext\Auth\Guards;
 
-use Charlietyn\AppContext\Context\AppContext;
+use Ronu\AppContext\Context\AppContext;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\UserProvider;

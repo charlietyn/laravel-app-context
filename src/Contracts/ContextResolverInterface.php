@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Contracts;
+namespace Ronu\AppContext\Contracts;
 
-use Charlietyn\AppContext\Context\AppContext;
+use Ronu\AppContext\Context\AppContext;
 use Illuminate\Http\Request;
 
 interface ContextResolverInterface

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Commands;
+namespace Ronu\AppContext\Commands;
 
-use Charlietyn\AppContext\Models\ApiClient;
+use Ronu\AppContext\Models\ApiClient;
 use Illuminate\Console\Command;
 
 class RevokeApiKeyCommand extends Command

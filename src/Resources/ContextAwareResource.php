@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Resources;
+namespace Ronu\AppContext\Resources;
 
-use Charlietyn\AppContext\Context\AppContext;
+use Ronu\AppContext\Context\AppContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 

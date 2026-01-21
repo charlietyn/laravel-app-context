@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Models;
+namespace Ronu\AppContext\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;

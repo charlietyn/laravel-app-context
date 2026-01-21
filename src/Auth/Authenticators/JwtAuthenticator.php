@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Auth\Authenticators;
+namespace Ronu\AppContext\Auth\Authenticators;
 
-use Charlietyn\AppContext\Auth\Verifiers\JwtVerifier;
-use Charlietyn\AppContext\Context\AppContext;
-use Charlietyn\AppContext\Contracts\AuthenticatorInterface;
-use Charlietyn\AppContext\Exceptions\AuthenticationException;
+use Ronu\AppContext\Auth\Verifiers\JwtVerifier;
+use Ronu\AppContext\Context\AppContext;
+use Ronu\AppContext\Contracts\AuthenticatorInterface;
+use Ronu\AppContext\Exceptions\AuthenticationException;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

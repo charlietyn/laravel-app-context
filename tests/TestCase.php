@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Tests;
+namespace Ronu\AppContext\Tests;
 
-use Charlietyn\AppContext\AppContextServiceProvider;
+use Ronu\AppContext\AppContextServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Middleware;
+namespace Ronu\AppContext\Middleware;
 
-use Charlietyn\AppContext\Auth\Authenticators\AnonymousAuthenticator;
-use Charlietyn\AppContext\Auth\Authenticators\ApiKeyAuthenticator;
-use Charlietyn\AppContext\Auth\Authenticators\JwtAuthenticator;
-use Charlietyn\AppContext\Context\AppContext;
-use Charlietyn\AppContext\Contracts\AuthenticatorInterface;
-use Charlietyn\AppContext\Exceptions\AuthenticationException;
+use Ronu\AppContext\Auth\Authenticators\AnonymousAuthenticator;
+use Ronu\AppContext\Auth\Authenticators\ApiKeyAuthenticator;
+use Ronu\AppContext\Auth\Authenticators\JwtAuthenticator;
+use Ronu\AppContext\Context\AppContext;
+use Ronu\AppContext\Contracts\AuthenticatorInterface;
+use Ronu\AppContext\Exceptions\AuthenticationException;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;

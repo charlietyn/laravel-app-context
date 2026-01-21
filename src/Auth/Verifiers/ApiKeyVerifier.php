@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Auth\Verifiers;
+namespace Ronu\AppContext\Auth\Verifiers;
 
-use Charlietyn\AppContext\Contracts\VerifierInterface;
-use Charlietyn\AppContext\Exceptions\AuthenticationException;
-use Charlietyn\AppContext\Models\ApiClient;
+use Ronu\AppContext\Contracts\VerifierInterface;
+use Ronu\AppContext\Exceptions\AuthenticationException;
+use Ronu\AppContext\Models\ApiClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;

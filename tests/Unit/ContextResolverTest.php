@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Tests\Unit;
+namespace Ronu\AppContext\Tests\Unit;
 
-use Charlietyn\AppContext\Context\ContextResolver;
+use Ronu\AppContext\Context\ContextResolver;
 use Illuminate\Http\Request;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpKernel\Exception\HttpException;

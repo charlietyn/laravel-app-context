@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Middleware;
+namespace Ronu\AppContext\Middleware;
 
-use Charlietyn\AppContext\Context\AppContext;
-use Charlietyn\AppContext\Exceptions\ContextBindingException;
+use Ronu\AppContext\Context\AppContext;
+use Ronu\AppContext\Exceptions\ContextBindingException;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;

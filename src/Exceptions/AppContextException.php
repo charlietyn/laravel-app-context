@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Exceptions;
+namespace Ronu\AppContext\Exceptions;
 
 use Exception;
 use Illuminate\Http\JsonResponse;

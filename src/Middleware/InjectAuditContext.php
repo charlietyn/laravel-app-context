@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Middleware;
+namespace Ronu\AppContext\Middleware;
 
-use Charlietyn\AppContext\Context\AppContext;
+use Ronu\AppContext\Context\AppContext;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;

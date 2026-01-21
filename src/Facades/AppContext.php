@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Facades;
+namespace Ronu\AppContext\Facades;
 
-use Charlietyn\AppContext\Context\AppContext as AppContextInstance;
+use Ronu\AppContext\Context\AppContext as AppContextInstance;
 use Illuminate\Support\Facades\Facade;
 
 /**
@@ -36,7 +36,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static AppContextInstance withMetadata(array $metadata)
  * @method static AppContextInstance addMetadata(string $key, mixed $value)
  *
- * @see \Charlietyn\AppContext\Context\AppContext
+ * @see \Ronu\AppContext\Context\AppContext
  */
 class AppContext extends Facade
 {

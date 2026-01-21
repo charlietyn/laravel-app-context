@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Traits;
+namespace Ronu\AppContext\Traits;
 
-use Charlietyn\AppContext\Context\AppContext;
+use Ronu\AppContext\Context\AppContext;
 
 /**
  * Trait for controllers that need to access AppContext.

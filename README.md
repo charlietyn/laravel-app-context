@@ -112,7 +112,7 @@ Route::middleware(['app.scope:admin:users:write,admin:users:delete'])
 ### Accessing AppContext
 
 ```php
-use Charlietyn\AppContext\Facades\AppContext;
+use Ronu\AppContext\Facades\AppContext;
 
 // Get current context
 $context = AppContext::current();
@@ -134,7 +134,7 @@ $context->requires('admin:export:run');
 ### In Controllers
 
 ```php
-use Charlietyn\AppContext\Context\AppContext;
+use Ronu\AppContext\Context\AppContext;
 
 class UserController extends Controller
 {

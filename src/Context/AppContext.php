@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Context;
+namespace Ronu\AppContext\Context;
 
-use Charlietyn\AppContext\Exceptions\AuthorizationException;
-use Charlietyn\AppContext\Support\ScopeChecker;
+use Ronu\AppContext\Exceptions\AuthorizationException;
+use Ronu\AppContext\Support\ScopeChecker;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Contracts\Support\Jsonable;
 use JsonSerializable;

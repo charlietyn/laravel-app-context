@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Auth\Verifiers;
+namespace Ronu\AppContext\Auth\Verifiers;
 
-use Charlietyn\AppContext\Contracts\VerifierInterface;
-use Charlietyn\AppContext\Exceptions\AuthenticationException;
+use Ronu\AppContext\Contracts\VerifierInterface;
+use Ronu\AppContext\Exceptions\AuthenticationException;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;

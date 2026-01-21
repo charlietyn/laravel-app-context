@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Tests\Unit;
+namespace Ronu\AppContext\Tests\Unit;
 
-use Charlietyn\AppContext\Context\AppContext;
+use Ronu\AppContext\Context\AppContext;
 use PHPUnit\Framework\TestCase;
 
 class AppContextTest extends TestCase

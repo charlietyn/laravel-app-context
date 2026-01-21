@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Contracts;
+namespace Ronu\AppContext\Contracts;
 
 use Illuminate\Http\Request;
 
@@ -14,7 +14,7 @@ interface VerifierInterface
      * @param Request $request The incoming HTTP request
      * @return array The verification result with claims/capabilities
      *
-     * @throws \Charlietyn\AppContext\Exceptions\AuthenticationException
+     * @throws \Ronu\AppContext\Exceptions\AuthenticationException
      */
     public function verify(Request $request): array;
 

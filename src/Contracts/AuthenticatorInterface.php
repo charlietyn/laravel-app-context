@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Charlietyn\AppContext\Contracts;
+namespace Ronu\AppContext\Contracts;
 
-use Charlietyn\AppContext\Context\AppContext;
+use Ronu\AppContext\Context\AppContext;
 use Illuminate\Http\Request;
 
 interface AuthenticatorInterface
@@ -16,7 +16,7 @@ interface AuthenticatorInterface
      * @param AppContext $context The initial context from resolver
      * @return AppContext The enriched context with authentication details
      *
-     * @throws \Charlietyn\AppContext\Exceptions\AuthenticationException
+     * @throws \Ronu\AppContext\Exceptions\AuthenticationException
      */
     public function authenticate(Request $request, AppContext $context): AppContext;
 
