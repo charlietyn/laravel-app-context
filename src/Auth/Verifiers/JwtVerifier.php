@@ -264,6 +264,11 @@ final class JwtVerifier implements VerifierInterface
             }
         }
 
+        // Verify audience claim exists when required
+        if ($this->verifyAudience && empty($claims['aud'])) {
+            throw AuthenticationException::invalidToken('Token missing audience claim');
+        }
+
         // Verify issuer
         if ($this->verifyIssuer && $this->expectedIssuer !== null) {
             $issuer = $claims['iss'] ?? null;

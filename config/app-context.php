@@ -315,6 +315,16 @@ return [
         // Whitelist of allowed algorithms (prevents algorithm confusion attacks)
         // CRITICAL: Never include 'none' in this list
         'allowed_algorithms' => ['HS256', 'RS256', 'RS384', 'RS512'],
+
+        // Development fallback when RSA keys are missing
+        'dev_fallback' => [
+            // Enable fallback to symmetric signing in dev-like environments
+            'enabled' => env('JWT_DEV_FALLBACK', true),
+            // Algorithm used when falling back
+            'algorithm' => env('JWT_DEV_ALGO', 'HS256'),
+            // Secret used for dev fallback (defaults to APP_KEY)
+            'secret' => env('JWT_DEV_SECRET', env('APP_KEY')),
+        ],
     ],
 
     /*

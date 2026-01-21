@@ -27,6 +27,7 @@ use Charlietyn\AppContext\Support\ScopeChecker;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 class AppContextServiceProvider extends ServiceProvider
@@ -37,6 +38,8 @@ class AppContextServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/app-context.php', 'app-context');
+
+        $this->configureJwtFallback();
 
         $this->registerContextResolver();
         $this->registerVerifiers();
@@ -86,7 +89,7 @@ class AppContextServiceProvider extends ServiceProvider
 
         $this->app->singleton(ApiKeyVerifier::class, function (Application $app) {
             return new ApiKeyVerifier(
-                config: $app['config']->get('app-context.api_key'),
+                config: $app['config']->get('app-context'),
             );
         });
     }
@@ -247,5 +250,56 @@ class AppContextServiceProvider extends ServiceProvider
             AnonymousAuthenticator::class,
             ScopeChecker::class,
         ];
+    }
+
+    /**
+     * Configure JWT fallback for development environments when RSA keys are missing.
+     */
+    protected function configureJwtFallback(): void
+    {
+        $config = $this->app['config']->get('app-context');
+        $jwtConfig = $config['jwt'] ?? [];
+        $fallbackConfig = $jwtConfig['dev_fallback'] ?? [];
+
+        $devEnvironments = $config['app_context_dev'] ?? ['local'];
+
+        if (! $this->app->environment($devEnvironments)) {
+            return;
+        }
+
+        if (! ($fallbackConfig['enabled'] ?? true)) {
+            return;
+        }
+
+        $algorithm = strtoupper((string) ($jwtConfig['algorithm'] ?? 'HS256'));
+        if (! str_starts_with($algorithm, 'RS')) {
+            return;
+        }
+
+        $publicKeyPath = $jwtConfig['public_key_path'] ?? null;
+        $privateKeyPath = $jwtConfig['private_key_path'] ?? null;
+
+        $publicExists = $publicKeyPath ? file_exists($publicKeyPath) : false;
+        $privateExists = $privateKeyPath ? file_exists($privateKeyPath) : false;
+
+        if ($publicExists && $privateExists) {
+            return;
+        }
+
+        $fallbackAlgorithm = $fallbackConfig['algorithm'] ?? 'HS256';
+        $fallbackSecret = $fallbackConfig['secret'] ?? $this->app['config']->get('app.key');
+        if (empty($fallbackSecret)) {
+            $fallbackSecret = 'dev-secret';
+        }
+
+        $this->app['config']->set('jwt.algo', $fallbackAlgorithm);
+        $this->app['config']->set('jwt.secret', $fallbackSecret);
+        $this->app['config']->set('app-context.jwt.algorithm', $fallbackAlgorithm);
+
+        Log::warning('JWT RSA keys missing in dev environment. Falling back to symmetric signing.', [
+            'algorithm' => $fallbackAlgorithm,
+            'public_key_path' => $publicKeyPath,
+            'private_key_path' => $privateKeyPath,
+        ]);
     }
 }
