@@ -56,7 +56,6 @@ class AppContextServiceProvider extends ServiceProvider
     {
         $this->publishConfig();
         $this->registerMiddleware();
-        $this->registerCommands();
         $this->registerAuthGuard();
     }
 
