@@ -58,7 +58,6 @@ class AppContextServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->publishConfig();
-        $this->publishMigrations();
         $this->registerMiddleware();
         $this->registerCommands();
         $this->registerAuthGuard();
@@ -220,24 +219,6 @@ class AppContextServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__ . '/../config/app-context.php' => config_path('app-context.php'),
         ], 'app-context-config');
-    }
-
-    /**
-     * Publish migrations.
-     *
-     * Migrations are now optional and only needed if using 'eloquent' driver.
-     */
-    protected function publishMigrations(): void
-    {
-        $this->publishes([
-            __DIR__ . '/../database/migrations/' => database_path('migrations'),
-        ], 'app-context-migrations');
-
-        // Only auto-load migrations if using eloquent driver
-        $driver = config('app-context.client_repository.driver', 'config');
-        if ($driver === 'eloquent') {
-            $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
-        }
     }
 
     /**
