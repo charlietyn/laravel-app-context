@@ -21,9 +21,10 @@ interface ClientRepositoryInterface
      * Find a client by its public identifier (app_code).
      *
      * @param string $appCode The unique client identifier
+     * @param string|null $keyPrefix Optional key prefix for multi-key storage
      * @return ClientInfo|null Client data or null if not found/inactive
      */
-    public function findByAppCode(string $appCode): ?ClientInfo;
+    public function findByAppCode(string $appCode, ?string $keyPrefix = null): ?ClientInfo;
 
     /**
      * Verify a key against stored hash.
@@ -42,8 +43,15 @@ interface ClientRepositoryInterface
      *
      * @param string $appCode The client identifier
      * @param string $ip The IP address of the request
+     * @param string|null $keyPrefix Optional key prefix for multi-key storage
+     * @param string|null $userAgent Optional user agent for audit trails
      */
-    public function trackUsage(string $appCode, string $ip): void;
+    public function trackUsage(
+        string $appCode,
+        string $ip,
+        ?string $keyPrefix = null,
+        ?string $userAgent = null
+    ): void;
 
     /**
      * Generate a new API key with hash.

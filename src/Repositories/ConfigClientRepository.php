@@ -58,7 +58,7 @@ final class ConfigClientRepository implements ClientRepositoryInterface
     /**
      * {@inheritdoc}
      */
-    public function findByAppCode(string $appCode): ?ClientInfo
+    public function findByAppCode(string $appCode, ?string $keyPrefix = null): ?ClientInfo
     {
         if (!isset($this->clients[$appCode])) {
             return null;
@@ -95,7 +95,12 @@ final class ConfigClientRepository implements ClientRepositoryInterface
      *
      * No-op for config-based repository.
      */
-    public function trackUsage(string $appCode, string $ip): void
+    public function trackUsage(
+        string $appCode,
+        string $ip,
+        ?string $keyPrefix = null,
+        ?string $userAgent = null
+    ): void
     {
         // Config-based repository doesn't track usage
         // Override in custom implementation if needed

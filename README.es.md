@@ -36,7 +36,7 @@ Publica la configuración:
 php artisan vendor:publish --tag=app-context-config
 ```
 
-**Opcional** - Si usas el driver `eloquent`, crea la tabla en tu aplicación
+**Opcional** - Si usas el driver `eloquent`, crea las tablas en tu aplicación
 (ejemplo de migración más abajo).
 
 ## Inicio Rápido
@@ -106,6 +106,70 @@ Route::middleware(['app.scope:admin:users:write,admin:users:delete'])
 
 ---
 
+## Guía de Integración de Middleware
+
+El paquete incluye middlewares granulares para armar un pipeline seguro por grupo de rutas:
+
+| Middleware | Responsabilidad |
+|------------|-----------------|
+| `app.context` | Resolver canal + contexto |
+| `app.auth` | Autenticar (JWT, API Key, anónimo) |
+| `app.binding` | Enforzar binding de canal/tenant |
+| `app.scope` | Validar scopes/capabilities |
+| `app.throttle` | Rate limit por contexto |
+| `app.audit` | Inyectar contexto en logs |
+
+**Orden recomendado (rutas protegidas):**
+
+```php
+Route::middleware([
+    'app.context',
+    'app.auth',
+    'app.binding',
+    'app.throttle',
+    'app.audit',
+])->group(function () {
+    // Rutas protegidas
+});
+```
+
+**Endpoints de login (JWT):** resuelven contexto y aplican rate limit **sin** `app.auth`, luego generan el token.
+
+```php
+Route::middleware([
+    'app.context',
+    'app.binding',
+    'app.throttle',
+    'app.audit',
+])->post('/api/login', [AuthController::class, 'login']);
+```
+
+**Endpoints con API Key:** no hay login. Cada request envía la key y `app.auth` la valida.
+
+---
+
+## Flujo de Login con `api_apps` + `api_app_keys`
+
+Con el esquema de dos tablas, **`api_apps` es el registro de clientes** y **`api_app_keys` almacena las keys por cliente**:
+
+1. **Crear una app** en `api_apps` con `app_code`, `app_name`, `is_active = true`.
+2. **Crear una o más keys** en `api_app_keys` para esa app.
+3. Autenticación con headers:
+   - `X-Client-Id: <app_code>`
+   - `X-Api-Key: <prefix>.<secret>`
+
+**Login JWT (usuarios):**
+- El endpoint de login solo necesita contexto (`app.context`) y auth normal de Laravel.
+- El JWT debe incluir `aud` que coincida con el canal configurado.
+
+**Login por API Key (M2M):**
+- No existe login; cada request usa la key. La librería valida:
+  - `api_apps.is_active`
+  - `api_app_keys.revoked_at` + `expires_at`
+  - `api_app_keys.scopes` o `api_app_keys.config.capabilities`
+
+---
+
 ## Configuración del Repositorio de Clientes
 
 La biblioteca usa un **patrón repositorio** para el almacenamiento de clientes API, permitiéndote elegir entre diferentes backends de almacenamiento sin modificar el código principal.
@@ -138,7 +202,14 @@ La biblioteca usa un **patrón repositorio** para el almacenamiento de clientes 
 
     // Configuración para driver 'eloquent'
     'eloquent' => [
+        // Esquema legacy en una sola tabla
         'table' => env('APP_CONTEXT_CLIENTS_TABLE', 'api_clients'),
+        // Esquema multi-tabla (recomendado)
+        'apps_table' => env('APP_CONTEXT_APPS_TABLE', 'api_apps'),
+        'app_keys_table' => env('APP_CONTEXT_APP_KEYS_TABLE', 'api_app_keys'),
+        // Opcional: clases de modelos
+        'app_model' => env('APP_CONTEXT_APP_MODEL'),
+        'app_key_model' => env('APP_CONTEXT_APP_KEY_MODEL'),
         'connection' => env('APP_CONTEXT_CLIENTS_CONNECTION', null),
         'hash_algorithm' => env('API_KEY_HASH_ALGO', 'argon2id'),
         'async_tracking' => true,
@@ -245,28 +316,41 @@ El driver `eloquent` almacena clientes en una tabla de base de datos. Es ideal p
 APP_CONTEXT_CLIENT_DRIVER=eloquent
 ```
 
-#### Paso 2: Crear la Tabla de Clientes
+#### Paso 2: Crear Tablas de Apps + Keys (Recomendado)
 
-Crea una migración en tu aplicación para la tabla `api_clients` (o el nombre de tabla personalizado).
-Esta es la estructura esperada:
+Crea migraciones para **`api_apps`** (clientes) y **`api_app_keys`** (keys por app).
+Esto permite múltiples keys por cliente:
 
-| Columna | Tipo | Descripción |
-|---------|------|-------------|
-| `id` | UUID | Clave primaria |
-| `app_code` | string | Identificador único del cliente (X-Client-Id) |
-| `name` | string | Nombre legible del cliente |
-| `key_hash` | string | Hash Argon2id/Bcrypt de la API key |
-| `key_prefix` | string | Primeros 10 caracteres para identificación |
-| `channel` | string | Canal autorizado |
-| `tenant_id` | string | Restricción de tenant (nullable) |
-| `config` | JSON | Capabilities, rate limits, webhook URL |
-| `ip_allowlist` | JSON | Allowlist de IPs con soporte CIDR |
-| `is_active` | boolean | Estado activo |
-| `is_revoked` | boolean | Estado de revocación |
-| `expires_at` | timestamp | Fecha de expiración |
-| `last_used_at` | timestamp | Timestamp del último uso |
-| `last_used_ip` | string | IP del último request |
-| `usage_count` | bigint | Contador total de requests |
+| Tabla | Columna | Descripción |
+|-------|---------|-------------|
+| `api_apps` | `app_code` | Identificador único del cliente (X-Client-Id) |
+| `api_apps` | `app_name` | Nombre legible del cliente |
+| `api_apps` | `is_active` | Estado activo |
+| `api_apps` | `config` | JSON con channel, tenant_id, rate limits, etc. |
+| `api_app_keys` | `app_id` | FK a `api_apps.id` |
+| `api_app_keys` | `key_prefix` | Prefijo de la key |
+| `api_app_keys` | `key_hash` | Hash Argon2id/Bcrypt |
+| `api_app_keys` | `scopes` | Lista de scopes (texto/json) |
+| `api_app_keys` | `config` | JSON con capabilities, ip_allowlist, etc. |
+| `api_app_keys` | `expires_at` | Fecha de expiración |
+| `api_app_keys` | `revoked_at` | Fecha de revocación |
+| `api_app_keys` | `last_used_at` | Timestamp del último uso |
+| `api_app_keys` | `last_used_ip` | IP del último request |
+| `api_app_keys` | `last_user_agent` | User Agent del último request |
+
+**Importante:** el driver `eloquent` también soporta el esquema legacy en una sola tabla (`api_clients`).
+
+#### Paso 3: Indicar Modelos en la Configuración
+
+```php
+'client_repository' => [
+    'driver' => 'eloquent',
+    'eloquent' => [
+        'app_model' => \App\Models\ApiApp::class,
+        'app_key_model' => \App\Models\ApiAppKey::class,
+    ],
+],
+```
 
 #### Paso 3: Generar API Keys vía Artisan
 
@@ -294,8 +378,16 @@ php artisan app-context:revoke-key partner-company_abc123 --force
 
 ```php
 'eloquent' => [
-    // Nombre de tabla personalizado
+    // Nombre legacy de una sola tabla
     'table' => 'my_api_clients',
+
+    // Tablas multi-tabla
+    'apps_table' => 'security.api_apps',
+    'app_keys_table' => 'security.api_app_keys',
+
+    // Clases de modelos opcionales
+    'app_model' => \App\Models\ApiApp::class,
+    'app_key_model' => \App\Models\ApiAppKey::class,
 
     // Usar una conexión de base de datos diferente
     'connection' => 'mysql_readonly',
@@ -336,9 +428,9 @@ class RedisClientRepository implements ClientRepositoryInterface
         // Initialize with config from app-context.php
     }
 
-    public function findByAppCode(string $appCode): ?ClientInfo
+    public function findByAppCode(string $appCode, ?string $keyPrefix = null): ?ClientInfo
     {
-        $data = Redis::hgetall("api_clients:{$appCode}");
+        $data = Redis::hgetall("api_apps:{$appCode}");
 
         if (empty($data)) {
             return null;
@@ -363,11 +455,16 @@ class RedisClientRepository implements ClientRepositoryInterface
         return password_verify($key, $storedHash);
     }
 
-    public function trackUsage(string $appCode, string $ip): void
+    public function trackUsage(
+        string $appCode,
+        string $ip,
+        ?string $keyPrefix = null,
+        ?string $userAgent = null
+    ): void
     {
-        Redis::hincrby("api_clients:{$appCode}", 'usage_count', 1);
-        Redis::hset("api_clients:{$appCode}", 'last_used_ip', $ip);
-        Redis::hset("api_clients:{$appCode}", 'last_used_at', now()->toIso8601String());
+        Redis::hincrby("api_apps:{$appCode}", 'usage_count', 1);
+        Redis::hset("api_apps:{$appCode}", 'last_used_ip', $ip);
+        Redis::hset("api_apps:{$appCode}", 'last_used_at', now()->toIso8601String());
     }
 
     public function generateKey(): array
@@ -390,7 +487,7 @@ class RedisClientRepository implements ClientRepositoryInterface
 
     public function revoke(string $appCode): bool
     {
-        return Redis::hset("api_clients:{$appCode}", 'is_revoked', '1') > 0;
+        return Redis::hset("api_apps:{$appCode}", 'is_revoked', '1') > 0;
     }
 
     public function all(array $filters = []): iterable
@@ -409,7 +506,7 @@ class RedisClientRepository implements ClientRepositoryInterface
 
     // Configuración personalizada pasada al constructor del repositorio
     \App\Repositories\RedisClientRepository::class => [
-        'prefix' => 'api_clients',
+        'prefix' => 'api_apps',
         'connection' => 'default',
     ],
 ],
@@ -545,6 +642,10 @@ APP_CONTEXT_DENY_BY_DEFAULT=true
 # Client Repository
 APP_CONTEXT_CLIENT_DRIVER=config  # or 'eloquent'
 APP_CONTEXT_CLIENTS_TABLE=api_clients
+APP_CONTEXT_APPS_TABLE=api_apps
+APP_CONTEXT_APP_KEYS_TABLE=api_app_keys
+APP_CONTEXT_APP_MODEL=App\\Models\\ApiApp
+APP_CONTEXT_APP_KEY_MODEL=App\\Models\\ApiAppKey
 APP_CONTEXT_CLIENTS_CONNECTION=
 
 # JWT
@@ -630,7 +731,7 @@ Si estabas usando la biblioteca antes de la introducción del patrón repositori
 
 1. Tu tabla `api_clients` existente sigue siendo compatible
 2. Configura `APP_CONTEXT_CLIENT_DRIVER=eloquent` para mantener el comportamiento actual
-3. No se requieren cambios de código para implementaciones existentes
+3. (Recomendado) Migrar a `api_apps` + `api_app_keys` y setear la configuración de modelos/tablas
 
 ---
 

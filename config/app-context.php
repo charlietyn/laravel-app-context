@@ -49,7 +49,14 @@ return [
 
         // Configuration for 'eloquent' driver (database required)
         'eloquent' => [
+            // Legacy single-table schema
             'table' => env('APP_CONTEXT_CLIENTS_TABLE', 'api_clients'),
+            // Multi-table schema (recommended)
+            'apps_table' => env('APP_CONTEXT_APPS_TABLE', 'api_apps'),
+            'app_keys_table' => env('APP_CONTEXT_APP_KEYS_TABLE', 'api_app_keys'),
+            // Optional: pass your Eloquent model classes (preferred for multi-table)
+            'app_model' => env('APP_CONTEXT_APP_MODEL'),
+            'app_key_model' => env('APP_CONTEXT_APP_KEY_MODEL'),
             'connection' => env('APP_CONTEXT_CLIENTS_CONNECTION', null),
             'hash_algorithm' => env('API_KEY_HASH_ALGO', 'argon2id'),
             'prefix_length' => 10,
