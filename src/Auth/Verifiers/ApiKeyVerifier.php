@@ -4,40 +4,59 @@ declare(strict_types=1);
 
 namespace Ronu\AppContext\Auth\Verifiers;
 
+use Ronu\AppContext\Contracts\ClientRepositoryInterface;
 use Ronu\AppContext\Contracts\VerifierInterface;
 use Ronu\AppContext\Exceptions\AuthenticationException;
-use Ronu\AppContext\Models\ApiClient;
+use Ronu\AppContext\Support\ClientInfo;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 /**
  * API Key Verifier for B2B/Partner authentication.
+ *
+ * This verifier is decoupled from any specific storage backend through
+ * the ClientRepositoryInterface. It can work with database-stored clients,
+ * config-based clients, or any custom implementation.
  *
  * Security Features:
  * - Argon2id hashing (recommended) or Bcrypt
  * - Expiration validation
  * - Revocation check
- * - IP allowlist support (CIDR)
+ * - IP allowlist support (IPv4/IPv6 with CIDR)
  * - Async usage tracking
+ *
+ * @package Ronu\AppContext\Auth\Verifiers
  */
 final class ApiKeyVerifier implements VerifierInterface
 {
+    /**
+     * @var string Header name for client ID
+     */
     private readonly string $clientIdHeader;
+
+    /**
+     * @var string Header name for API key
+     */
     private readonly string $apiKeyHeader;
-    private readonly string $hashAlgorithm;
+
+    /**
+     * @var bool Whether to enforce IP allowlist even when empty
+     */
     private readonly bool $enforceIpAllowlist;
 
-    public function __construct(array $config)
-    {
+    /**
+     * @param ClientRepositoryInterface $clientRepository The client storage backend
+     * @param array<string, mixed> $config Configuration array
+     */
+    public function __construct(
+        private readonly ClientRepositoryInterface $clientRepository,
+        array $config,
+    ) {
         $apiKeyConfig = $config['api_key'] ?? $config;
         $securityConfig = $config['security'] ?? [];
 
         $this->clientIdHeader = $apiKeyConfig['headers']['client_id'] ?? 'X-Client-Id';
         $this->apiKeyHeader = $apiKeyConfig['headers']['api_key'] ?? 'X-Api-Key';
-        $this->hashAlgorithm = $apiKeyConfig['hash_algorithm'] ?? 'argon2id';
         $this->enforceIpAllowlist = $securityConfig['enforce_ip_allowlist'] ?? false;
     }
 
@@ -64,8 +83,8 @@ final class ApiKeyVerifier implements VerifierInterface
             throw AuthenticationException::missingApiKey();
         }
 
-        // Find client
-        $client = $this->findClient($clientId);
+        // Find client via repository
+        $client = $this->clientRepository->findByAppCode($clientId);
         if ($client === null) {
             Log::warning('API key verification failed: client not found', [
                 'client_id' => $clientId,
@@ -74,8 +93,8 @@ final class ApiKeyVerifier implements VerifierInterface
             throw AuthenticationException::clientNotFound();
         }
 
-        // Verify key hash
-        if (! $this->verifyKeyHash($apiKey, $client->key_hash)) {
+        // Verify key hash via repository
+        if (!$this->clientRepository->verifyKeyHash($apiKey, $client->keyHash)) {
             Log::warning('API key verification failed: invalid key', [
                 'client_id' => $clientId,
                 'ip' => $request->ip(),
@@ -84,16 +103,16 @@ final class ApiKeyVerifier implements VerifierInterface
         }
 
         // Check expiration
-        if ($client->expires_at !== null && $client->expires_at->isPast()) {
+        if ($client->isExpired()) {
             Log::warning('API key verification failed: expired', [
                 'client_id' => $clientId,
-                'expires_at' => $client->expires_at,
+                'expires_at' => $client->expiresAt?->format('Y-m-d H:i:s'),
             ]);
             throw AuthenticationException::expiredApiKey();
         }
 
         // Check revocation
-        if ($client->is_revoked) {
+        if ($client->isRevoked) {
             Log::warning('API key verification failed: revoked', [
                 'client_id' => $clientId,
             ]);
@@ -101,28 +120,28 @@ final class ApiKeyVerifier implements VerifierInterface
         }
 
         // Check IP allowlist
-        if (! $this->isIpAllowed($request->ip(), $client)) {
+        if (!$this->isIpAllowed($request->ip(), $client)) {
             Log::warning('API key verification failed: IP not allowed', [
                 'client_id' => $clientId,
                 'ip' => $request->ip(),
-                'allowlist' => $client->ip_allowlist,
+                'allowlist' => $client->ipAllowlist,
             ]);
             throw AuthenticationException::ipNotAllowed($request->ip());
         }
 
-        // Track usage asynchronously
-        $this->trackUsage($client, $request);
+        // Track usage via repository
+        $this->clientRepository->trackUsage($client->appCode, $request->ip());
 
         return [
-            'client_id' => $client->app_code,
+            'client_id' => $client->appCode,
             'client_name' => $client->name,
             'channel' => $client->channel,
-            'tenant_id' => $client->tenant_id,
-            'capabilities' => $client->config['capabilities'] ?? [],
+            'tenant_id' => $client->tenantId,
+            'capabilities' => $client->capabilities,
             'metadata' => [
                 'client_uuid' => $client->id,
-                'rate_limit_tier' => $client->config['rate_limit_tier'] ?? 'default',
-                'webhook_url' => $client->config['webhook_url'] ?? null,
+                'rate_limit_tier' => $client->getMeta('rate_limit_tier', 'default'),
+                'webhook_url' => $client->getMeta('webhook_url'),
             ],
         ];
     }
@@ -151,31 +170,17 @@ final class ApiKeyVerifier implements VerifierInterface
      */
     public function generateKey(): array
     {
-        $prefix = Str::random(config('app-context.api_key.prefix_length', 10));
-        $secret = Str::random(config('app-context.api_key.key_length', 32));
-        $key = "{$prefix}.{$secret}";
-
-        return [
-            'key' => $key,
-            'hash' => $this->hashKey($key),
-            'prefix' => $prefix,
-        ];
+        return $this->clientRepository->generateKey();
     }
 
     /**
-     * Hash an API key.
+     * Get the underlying client repository.
+     *
+     * Useful for commands that need direct access to create/revoke/list operations.
      */
-    public function hashKey(string $key): string
+    public function getRepository(): ClientRepositoryInterface
     {
-        return match ($this->hashAlgorithm) {
-            'argon2id' => password_hash($key, PASSWORD_ARGON2ID, [
-                'memory_cost' => 65536,
-                'time_cost' => 4,
-                'threads' => 3,
-            ]),
-            'bcrypt' => Hash::make($key),
-            default => Hash::make($key),
-        };
+        return $this->clientRepository;
     }
 
     /**
@@ -195,38 +200,16 @@ final class ApiKeyVerifier implements VerifierInterface
     }
 
     /**
-     * Find API client by app code.
-     */
-    private function findClient(string $clientId): ?ApiClient
-    {
-        return ApiClient::where('app_code', $clientId)
-            ->where('is_active', true)
-            ->first();
-    }
-
-    /**
-     * Verify key hash.
-     */
-    private function verifyKeyHash(string $key, string $hash): bool
-    {
-        return match ($this->hashAlgorithm) {
-            'argon2id' => password_verify($key, $hash),
-            'bcrypt' => Hash::check($key, $hash),
-            default => Hash::check($key, $hash),
-        };
-    }
-
-    /**
      * Check if IP is allowed.
      */
-    private function isIpAllowed(string $ip, ApiClient $client): bool
+    private function isIpAllowed(string $ip, ClientInfo $client): bool
     {
         // If no allowlist, allow all unless enforcement is enabled
-        if (empty($client->ip_allowlist)) {
-            return ! $this->enforceIpAllowlist;
+        if (empty($client->ipAllowlist)) {
+            return !$this->enforceIpAllowlist;
         }
 
-        foreach ($client->ip_allowlist as $allowed) {
+        foreach ($client->ipAllowlist as $allowed) {
             // Check exact match
             if ($ip === $allowed) {
                 return true;
@@ -303,20 +286,5 @@ final class ApiKeyVerifier implements VerifierInterface
         $subnetByte = ord($subnetPacked[$bytes]);
 
         return ($ipByte & $mask) === ($subnetByte & $mask);
-    }
-
-    /**
-     * Track API key usage asynchronously.
-     */
-    private function trackUsage(ApiClient $client, Request $request): void
-    {
-        // Use a queue job or async update to not block the request
-        dispatch(function () use ($client, $request) {
-            $client->newQuery()->whereKey($client->id)->update([
-                'last_used_at' => now(),
-                'last_used_ip' => $request->ip(),
-                'usage_count' => DB::raw('usage_count + 1'),
-            ]);
-        })->afterResponse();
     }
 }

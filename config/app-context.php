@@ -3,6 +3,63 @@
 return [
     /*
     |--------------------------------------------------------------------------
+    | Client Repository Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure how API clients are stored and retrieved. The library supports
+    | multiple backends without requiring database migrations.
+    |
+    | Available drivers:
+    | - 'config': Define clients directly in configuration (no database)
+    | - 'eloquent': Store clients in database (requires migration)
+    | - Custom class: Any class implementing ClientRepositoryInterface
+    |
+    */
+    'client_repository' => [
+        // Driver: 'config', 'eloquent', or fully qualified class name
+        'driver' => env('APP_CONTEXT_CLIENT_DRIVER', 'config'),
+
+        // Configuration for 'config' driver (no database required)
+        'config' => [
+            'hash_algorithm' => env('API_KEY_HASH_ALGO', 'bcrypt'),
+            'prefix_length' => 10,
+            'key_length' => 32,
+
+            // Define clients here for simple setups
+            // Generate hash: php artisan tinker --execute="echo Hash::make('your-secret-key');"
+            'clients' => [
+                // Example client (commented out):
+                // 'my-partner' => [
+                //     'name' => 'My Partner App',
+                //     'key_hash' => '$2y$10$...', // bcrypt/argon2id hash of the API key
+                //     'channel' => 'partner',
+                //     'tenant_id' => null,
+                //     'capabilities' => ['partner:*'],
+                //     'ip_allowlist' => [], // ['192.168.1.0/24', '10.0.0.1']
+                //     'is_active' => true,
+                //     'is_revoked' => false,
+                //     'expires_at' => null, // '2025-12-31 23:59:59'
+                //     'metadata' => [
+                //         'rate_limit_tier' => 'default',
+                //         'webhook_url' => null,
+                //     ],
+                // ],
+            ],
+        ],
+
+        // Configuration for 'eloquent' driver (database required)
+        'eloquent' => [
+            'table' => env('APP_CONTEXT_CLIENTS_TABLE', 'api_clients'),
+            'connection' => env('APP_CONTEXT_CLIENTS_CONNECTION', null),
+            'hash_algorithm' => env('API_KEY_HASH_ALGO', 'argon2id'),
+            'prefix_length' => 10,
+            'key_length' => 32,
+            'async_tracking' => true, // Track usage asynchronously
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Default Behavior
     |--------------------------------------------------------------------------
     |

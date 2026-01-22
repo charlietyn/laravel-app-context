@@ -16,6 +16,7 @@ use Ronu\AppContext\Commands\RevokeApiKeyCommand;
 use Ronu\AppContext\Context\AppContext;
 use Ronu\AppContext\Context\ContextResolver;
 use Ronu\AppContext\Contracts\AuthenticatorInterface;
+use Ronu\AppContext\Contracts\ClientRepositoryInterface;
 use Ronu\AppContext\Contracts\ContextResolverInterface;
 use Ronu\AppContext\Middleware\AuthenticateChannel;
 use Ronu\AppContext\Middleware\EnforceContextBinding;
@@ -23,6 +24,8 @@ use Ronu\AppContext\Middleware\InjectAuditContext;
 use Ronu\AppContext\Middleware\RateLimitByContext;
 use Ronu\AppContext\Middleware\RequireScope;
 use Ronu\AppContext\Middleware\ResolveAppContext;
+use Ronu\AppContext\Repositories\ConfigClientRepository;
+use Ronu\AppContext\Repositories\EloquentClientRepository;
 use Ronu\AppContext\Support\ScopeChecker;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Routing\Router;
@@ -42,6 +45,7 @@ class AppContextServiceProvider extends ServiceProvider
         $this->configureJwtFallback();
 
         $this->registerContextResolver();
+        $this->registerClientRepository();
         $this->registerVerifiers();
         $this->registerAuthenticators();
         $this->registerScopeChecker();
@@ -75,6 +79,58 @@ class AppContextServiceProvider extends ServiceProvider
     }
 
     /**
+     * Register the client repository based on configuration.
+     *
+     * The repository can be:
+     * - 'config': Config-based clients (no database required)
+     * - 'eloquent': Database-based clients
+     * - Custom class: Any class implementing ClientRepositoryInterface
+     */
+    protected function registerClientRepository(): void
+    {
+        $this->app->singleton(ClientRepositoryInterface::class, function (Application $app) {
+            $config = $app['config']->get('app-context.client_repository', []);
+            $driver = $config['driver'] ?? 'config';
+
+            return match ($driver) {
+                'config' => new ConfigClientRepository($config['config'] ?? []),
+                'eloquent' => new EloquentClientRepository($config['eloquent'] ?? []),
+                default => $this->resolveCustomRepository($app, $driver, $config),
+            };
+        });
+
+        $this->app->alias(ClientRepositoryInterface::class, 'app-context.client-repository');
+    }
+
+    /**
+     * Resolve a custom repository class.
+     *
+     * @param Application $app
+     * @param string $driver Custom repository class name
+     * @param array<string, mixed> $config Full configuration
+     * @return ClientRepositoryInterface
+     */
+    protected function resolveCustomRepository(Application $app, string $driver, array $config): ClientRepositoryInterface
+    {
+        if (!class_exists($driver)) {
+            throw new \InvalidArgumentException(
+                "Client repository driver '{$driver}' not found. " .
+                "Use 'config', 'eloquent', or a fully qualified class name."
+            );
+        }
+
+        $repository = $app->make($driver, ['config' => $config[$driver] ?? $config['custom'] ?? []]);
+
+        if (!$repository instanceof ClientRepositoryInterface) {
+            throw new \InvalidArgumentException(
+                "Client repository '{$driver}' must implement " . ClientRepositoryInterface::class
+            );
+        }
+
+        return $repository;
+    }
+
+    /**
      * Register JWT and API Key verifiers.
      */
     protected function registerVerifiers(): void
@@ -89,6 +145,7 @@ class AppContextServiceProvider extends ServiceProvider
 
         $this->app->singleton(ApiKeyVerifier::class, function (Application $app) {
             return new ApiKeyVerifier(
+                clientRepository: $app->make(ClientRepositoryInterface::class),
                 config: $app['config']->get('app-context'),
             );
         });
@@ -167,6 +224,8 @@ class AppContextServiceProvider extends ServiceProvider
 
     /**
      * Publish migrations.
+     *
+     * Migrations are now optional and only needed if using 'eloquent' driver.
      */
     protected function publishMigrations(): void
     {
@@ -174,7 +233,11 @@ class AppContextServiceProvider extends ServiceProvider
             __DIR__ . '/../database/migrations/' => database_path('migrations'),
         ], 'app-context-migrations');
 
-        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+        // Only auto-load migrations if using eloquent driver
+        $driver = config('app-context.client_repository.driver', 'config');
+        if ($driver === 'eloquent') {
+            $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+        }
     }
 
     /**
@@ -242,7 +305,9 @@ class AppContextServiceProvider extends ServiceProvider
             'app-context',
             'app-context.resolver',
             'app-context.authenticator',
+            'app-context.client-repository',
             ContextResolverInterface::class,
+            ClientRepositoryInterface::class,
             JwtVerifier::class,
             ApiKeyVerifier::class,
             JwtAuthenticator::class,
