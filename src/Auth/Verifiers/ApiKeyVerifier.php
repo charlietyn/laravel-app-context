@@ -78,13 +78,14 @@ final class ApiKeyVerifier implements VerifierInterface
     {
         $clientId = $this->extractClientId($request);
         $apiKey = $this->extractApiKey($request);
+        $keyPrefix = $this->extractKeyPrefix($apiKey);
 
         if ($clientId === null || $apiKey === null) {
             throw AuthenticationException::missingApiKey();
         }
 
         // Find client via repository
-        $client = $this->clientRepository->findByAppCode($clientId);
+        $client = $this->clientRepository->findByAppCode($clientId, $keyPrefix);
         if ($client === null) {
             Log::warning('API key verification failed: client not found', [
                 'client_id' => $clientId,
@@ -130,7 +131,12 @@ final class ApiKeyVerifier implements VerifierInterface
         }
 
         // Track usage via repository
-        $this->clientRepository->trackUsage($client->appCode, $request->ip());
+        $this->clientRepository->trackUsage(
+            $client->appCode,
+            $request->ip(),
+            $keyPrefix,
+            $request->userAgent()
+        );
 
         return [
             'client_id' => $client->appCode,
@@ -197,6 +203,20 @@ final class ApiKeyVerifier implements VerifierInterface
     private function extractApiKey(Request $request): ?string
     {
         return $request->header($this->apiKeyHeader);
+    }
+
+    /**
+     * Extract API key prefix (before dot separator).
+     */
+    private function extractKeyPrefix(?string $apiKey): ?string
+    {
+        if ($apiKey === null) {
+            return null;
+        }
+
+        $parts = explode('.', $apiKey, 2);
+
+        return $parts[0] !== '' ? $parts[0] : null;
     }
 
     /**
