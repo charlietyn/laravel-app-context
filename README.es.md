@@ -36,12 +36,8 @@ Publica la configuración:
 php artisan vendor:publish --tag=app-context-config
 ```
 
-**Opcional** - Publica las migraciones (solo requerido para el driver `eloquent`):
-
-```bash
-php artisan vendor:publish --tag=app-context-migrations
-php artisan migrate
-```
+**Opcional** - Si usas el driver `eloquent`, crea la tabla en tu aplicación
+(ejemplo de migración más abajo).
 
 ## Inicio Rápido
 
@@ -249,14 +245,10 @@ El driver `eloquent` almacena clientes en una tabla de base de datos. Es ideal p
 APP_CONTEXT_CLIENT_DRIVER=eloquent
 ```
 
-#### Paso 2: Publicar y Ejecutar Migraciones
+#### Paso 2: Crear la Tabla de Clientes
 
-```bash
-php artisan vendor:publish --tag=app-context-migrations
-php artisan migrate
-```
-
-Esto crea la tabla `api_clients` con la siguiente estructura:
+Crea una migración en tu aplicación para la tabla `api_clients` (o el nombre de tabla personalizado).
+Esta es la estructura esperada:
 
 | Columna | Tipo | Descripción |
 |---------|------|-------------|
