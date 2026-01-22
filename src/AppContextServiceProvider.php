@@ -10,9 +10,6 @@ use Ronu\AppContext\Auth\Authenticators\JwtAuthenticator;
 use Ronu\AppContext\Auth\Guards\AppContextGuard;
 use Ronu\AppContext\Auth\Verifiers\ApiKeyVerifier;
 use Ronu\AppContext\Auth\Verifiers\JwtVerifier;
-use Ronu\AppContext\Commands\GenerateApiKeyCommand;
-use Ronu\AppContext\Commands\ListApiClientsCommand;
-use Ronu\AppContext\Commands\RevokeApiKeyCommand;
 use Ronu\AppContext\Context\AppContext;
 use Ronu\AppContext\Context\ContextResolver;
 use Ronu\AppContext\Contracts\AuthenticatorInterface;
@@ -244,20 +241,6 @@ class AppContextServiceProvider extends ServiceProvider
             RateLimitByContext::class,
             InjectAuditContext::class,
         ]);
-    }
-
-    /**
-     * Register artisan commands.
-     */
-    protected function registerCommands(): void
-    {
-        if ($this->app->runningInConsole()) {
-            $this->commands([
-                GenerateApiKeyCommand::class,
-                ListApiClientsCommand::class,
-                RevokeApiKeyCommand::class,
-            ]);
-        }
     }
 
     /**
