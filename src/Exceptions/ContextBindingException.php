@@ -12,10 +12,12 @@ class ContextBindingException extends AppContextException
     protected string $errorCode = 'CONTEXT_BINDING_FAILED';
     protected int $httpStatus = 403;
 
-    public static function audienceMismatch(string $expected, string $actual): self
+    public static function audienceMismatch(string $expected, string|array $actual): self
     {
+        $actualValue = is_array($actual) ? implode(', ', $actual) : $actual;
+
         return new self(
-            "Token audience mismatch. Expected '{$expected}', got '{$actual}'",
+            "Token audience mismatch. Expected '{$expected}', got '{$actualValue}'",
             'audience_binding'
         );
     }

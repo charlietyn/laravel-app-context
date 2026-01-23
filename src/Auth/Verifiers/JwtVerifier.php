@@ -279,7 +279,7 @@ final class JwtVerifier implements VerifierInterface
         // Verify issuer
         if ($this->verifyIssuer && $this->expectedIssuer !== null) {
             $issuer = $claims['iss'] ?? null;
-            if ($issuer !== $this->expectedIssuer) {
+            if (! $this->issuerMatches($issuer)) {
                 throw AuthenticationException::invalidToken(
                     "Invalid issuer. Expected '{$this->expectedIssuer}', got '{$issuer}'"
                 );
@@ -298,5 +298,27 @@ final class JwtVerifier implements VerifierInterface
     public function getJwtAuth(): JWTAuth
     {
         return $this->jwtAuth;
+    }
+
+    private function issuerMatches(?string $issuer): bool
+    {
+        if ($issuer === null) {
+            return false;
+        }
+
+        $expected = rtrim((string) $this->expectedIssuer, '/');
+        $actual = rtrim($issuer, '/');
+
+        if ($actual === $expected) {
+            return true;
+        }
+
+        if (! str_starts_with($actual, $expected)) {
+            return false;
+        }
+
+        $nextChar = substr($actual, strlen($expected), 1);
+
+        return $nextChar === '' || $nextChar === '/' || $nextChar === '?' || $nextChar === '#';
     }
 }
