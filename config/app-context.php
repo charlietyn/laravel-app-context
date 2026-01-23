@@ -174,9 +174,12 @@ return [
     | - jwt_audience: Expected JWT audience claim for this channel
     | - allowed_scopes: Scopes available in this channel (for JWT)
     | - allowed_capabilities: Capabilities available (for API Key)
+    | - public_scopes: Public scopes for jwt_or_anonymous/anonymous access
+    | - anonymous_on_invalid_token: Allow fallback to anonymous for invalid JWTs
     | - rate_limit_profile: Which rate limit profile to use
     | - tenant_mode: single or multi-tenant
     | - features: Channel-specific feature flags
+    | - audit: Channel-specific audit overrides
     |
     */
     'channels' => [
@@ -232,6 +235,10 @@ return [
                 'audit_all_requests' => true,
                 'allow_anonymous' => false,
             ],
+            'audit' => [
+                'enabled' => true,
+                'log_all_requests' => false,
+            ],
         ],
 
         /*
@@ -251,11 +258,20 @@ return [
                 'checkout:*',
                 'catalog:browse',
             ],
+            'public_scopes' => [
+                'catalog:browse',
+                'public:read',
+            ],
+            'anonymous_on_invalid_token' => false,
             'rate_limit_profile' => 'site',
             'tenant_mode' => 'single',
             'features' => [
                 'allow_anonymous' => true,
                 'captcha_on_checkout' => true,
+            ],
+            'audit' => [
+                'enabled' => false,
+                'log_all_requests' => false,
             ],
         ],
 

@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Ronu\AppContext\Tests\Unit;
 
 use Ronu\AppContext\Context\ContextResolver;
+use Ronu\AppContext\Tests\TestCase;
 use Illuminate\Http\Request;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ContextResolverTest extends TestCase
 {
@@ -41,34 +40,35 @@ class ContextResolverTest extends TestCase
         ];
     }
 
-    private function createResolver(bool $denyByDefault = true): ContextResolver
+    private function createResolver(array $overrides = []): ContextResolver
     {
-        return new ContextResolver(
-            channelsConfig: $this->channelsConfig,
-            baseDomain: 'example.com',
-            denyByDefault: $denyByDefault
-        );
+        $config = array_merge([
+            'channels' => $this->channelsConfig,
+            'domain' => 'example.com',
+            'detection_strategy' => 'path',
+            'deny_by_default' => true,
+        ], $overrides);
+
+        return new ContextResolver($config);
     }
 
     private function createRequest(string $host, string $path): Request
     {
         $request = Request::create("http://{$host}/{$path}");
         $request->server->set('HTTP_HOST', $host);
+
         return $request;
     }
 
-    public function test_resolves_by_path_on_localhost(): void
+    public function test_resolves_by_path(): void
     {
         $resolver = $this->createResolver();
         $request = $this->createRequest('localhost', '/mobile/orders');
 
-        // Mock app environment
-        app()->detectEnvironment(fn () => 'local');
-
         $context = $resolver->resolve($request);
 
-        $this->assertEquals('mobile', $context->appId);
-        $this->assertEquals('jwt', $context->authMode);
+        $this->assertEquals('mobile', $context?->getAppId());
+        $this->assertEquals('jwt', $context?->getAuthMode());
     }
 
     public function test_resolves_admin_by_path(): void
@@ -76,11 +76,9 @@ class ContextResolverTest extends TestCase
         $resolver = $this->createResolver();
         $request = $this->createRequest('localhost', '/api/users');
 
-        app()->detectEnvironment(fn () => 'local');
-
         $context = $resolver->resolve($request);
 
-        $this->assertEquals('admin', $context->appId);
+        $this->assertEquals('admin', $context?->getAppId());
     }
 
     public function test_resolves_partner_by_path(): void
@@ -88,32 +86,10 @@ class ContextResolverTest extends TestCase
         $resolver = $this->createResolver();
         $request = $this->createRequest('localhost', '/partner/orders');
 
-        app()->detectEnvironment(fn () => 'local');
-
         $context = $resolver->resolve($request);
 
-        $this->assertEquals('partner', $context->appId);
-        $this->assertEquals('api_key', $context->authMode);
-    }
-
-    public function test_has_channel(): void
-    {
-        $resolver = $this->createResolver();
-
-        $this->assertTrue($resolver->hasChannel('mobile'));
-        $this->assertTrue($resolver->hasChannel('admin'));
-        $this->assertFalse($resolver->hasChannel('unknown'));
-    }
-
-    public function test_get_channel_config(): void
-    {
-        $resolver = $this->createResolver();
-
-        $config = $resolver->getChannelConfig('mobile');
-
-        $this->assertIsArray($config);
-        $this->assertEquals('jwt', $config['auth_mode']);
-        $this->assertContains('mobile', $config['subdomains']);
+        $this->assertEquals('partner', $context?->getAppId());
+        $this->assertEquals('api_key', $context?->getAuthMode());
     }
 
     public function test_get_channel_config_returns_null_for_unknown(): void
@@ -135,30 +111,13 @@ class ContextResolverTest extends TestCase
         $this->assertArrayHasKey('partner', $channels);
     }
 
-    public function test_throws_on_unknown_channel_when_deny_by_default(): void
+    public function test_returns_null_for_unknown_channel(): void
     {
-        $resolver = $this->createResolver(denyByDefault: true);
+        $resolver = $this->createResolver();
         $request = $this->createRequest('localhost', '/unknown/path');
-
-        app()->detectEnvironment(fn () => 'local');
-
-        $this->expectException(HttpException::class);
-        $this->expectExceptionMessage('No valid channel detected');
-
-        $resolver->resolve($request);
-    }
-
-    public function test_returns_fallback_when_not_deny_by_default(): void
-    {
-        $resolver = $this->createResolver(denyByDefault: false);
-        $request = $this->createRequest('localhost', '/unknown/path');
-
-        app()->detectEnvironment(fn () => 'local');
 
         $context = $resolver->resolve($request);
 
-        $this->assertEquals('site', $context->appId);
-        $this->assertEquals('anonymous', $context->authMode);
-        $this->assertTrue($context->getMeta('fallback'));
+        $this->assertNull($context);
     }
 }

@@ -13,9 +13,9 @@ class AppContextTest extends TestCase
     {
         $context = AppContext::fromChannel('mobile', 'jwt');
 
-        $this->assertEquals('mobile', $context->appId);
-        $this->assertEquals('jwt', $context->authMode);
-        $this->assertNull($context->userId);
+        $this->assertEquals('mobile', $context->getAppId());
+        $this->assertEquals('jwt', $context->getAuthMode());
+        $this->assertNull($context->getUserId());
         $this->assertFalse($context->isAuthenticated());
     }
 
@@ -28,10 +28,10 @@ class AppContextTest extends TestCase
             'tid' => 'tenant_1',
         ]);
 
-        $this->assertEquals('admin', $context->appId);
-        $this->assertEquals('jwt', $context->authMode);
-        $this->assertEquals('123', $context->userId);
-        $this->assertEquals('tenant_1', $context->tenantId);
+        $this->assertEquals('admin', $context->getAppId());
+        $this->assertEquals('jwt', $context->getAuthMode());
+        $this->assertEquals('123', $context->getUserId());
+        $this->assertEquals('tenant_1', $context->getTenantId());
         $this->assertTrue($context->isAuthenticated());
     }
 
@@ -43,18 +43,18 @@ class AppContextTest extends TestCase
             ['partner:*', 'webhooks:send']
         );
 
-        $this->assertEquals('partner', $context->appId);
-        $this->assertEquals('api_key', $context->authMode);
-        $this->assertEquals('client_123', $context->clientId);
+        $this->assertEquals('partner', $context->getAppId());
+        $this->assertEquals('api_key', $context->getAuthMode());
+        $this->assertEquals('client_123', $context->getClientId());
         $this->assertTrue($context->isAuthenticated());
     }
 
     public function test_can_create_anonymous(): void
     {
-        $context = AppContext::anonymous('site', ['public:read']);
+        $context = AppContext::anonymous('site');
 
-        $this->assertEquals('site', $context->appId);
-        $this->assertEquals('anonymous', $context->authMode);
+        $this->assertEquals('site', $context->getAppId());
+        $this->assertEquals('anonymous', $context->getAuthMode());
         $this->assertFalse($context->isAuthenticated());
         $this->assertTrue($context->isAnonymous());
     }
@@ -143,7 +143,7 @@ class AppContextTest extends TestCase
         $this->assertFalse($context->hasAnyScope(['admin:reports:export', 'admin:settings:write']));
     }
 
-    public function test_requires_delegates_to_correct_method(): void
+    public function test_has_ability_checks_scopes_and_capabilities(): void
     {
         $jwtContext = AppContext::fromJwt('admin', [
             'sub' => '1',
@@ -156,11 +156,11 @@ class AppContextTest extends TestCase
             ['partner:orders:create']
         );
 
-        $this->assertTrue($jwtContext->requires('admin:users:read'));
-        $this->assertFalse($jwtContext->requires('admin:users:write'));
+        $this->assertTrue($jwtContext->hasAbility('admin:users:read'));
+        $this->assertFalse($jwtContext->hasAbility('admin:users:write'));
 
-        $this->assertTrue($apiKeyContext->requires('partner:orders:create'));
-        $this->assertFalse($apiKeyContext->requires('partner:orders:delete'));
+        $this->assertTrue($apiKeyContext->hasAbility('partner:orders:create'));
+        $this->assertFalse($apiKeyContext->hasAbility('partner:orders:delete'));
     }
 
     public function test_get_identifier(): void
@@ -239,6 +239,6 @@ class AppContextTest extends TestCase
         $context = AppContext::fromChannel('mobile', 'jwt');
 
         // ULID is 26 characters
-        $this->assertEquals(26, strlen($context->requestId));
+        $this->assertEquals(26, strlen($context->getRequestId()));
     }
 }

@@ -228,6 +228,14 @@ final class AppContext implements Arrayable, Jsonable, JsonSerializable, Stringa
     }
 
     /**
+     * Check if the context is anonymous.
+     */
+    public function isAnonymous(): bool
+    {
+        return $this->authMode === 'anonymous';
+    }
+
+    /**
      * Check if context has a specific scope.
      * Supports wildcards: admin:* matches admin:users:read
      */
@@ -246,6 +254,15 @@ final class AppContext implements Arrayable, Jsonable, JsonSerializable, Stringa
     }
 
     /**
+     * Check if context has a specific scope or capability.
+     * Supports wildcards via ScopeChecker.
+     */
+    public function hasAbility(string $ability): bool
+    {
+        return $this->hasScope($ability) || $this->hasCapability($ability);
+    }
+
+    /**
      * Check if context has any of the given scopes.
      */
     public function hasAnyScope(array $scopes): bool
@@ -260,12 +277,40 @@ final class AppContext implements Arrayable, Jsonable, JsonSerializable, Stringa
     }
 
     /**
+     * Check if context has any of the given abilities.
+     */
+    public function hasAnyAbility(array $abilities): bool
+    {
+        foreach ($abilities as $ability) {
+            if ($this->hasAbility($ability)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Check if context has all of the given scopes.
      */
     public function hasAllScopes(array $scopes): bool
     {
         foreach ($scopes as $scope) {
             if (! $this->hasScope($scope)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if context has all of the given abilities.
+     */
+    public function hasAllAbilities(array $abilities): bool
+    {
+        foreach ($abilities as $ability) {
+            if (! $this->hasAbility($ability)) {
                 return false;
             }
         }
@@ -308,7 +353,7 @@ final class AppContext implements Arrayable, Jsonable, JsonSerializable, Stringa
      */
     public function requires(string $scopeOrCapability): void
     {
-        if (! $this->hasScope($scopeOrCapability) && ! $this->hasCapability($scopeOrCapability)) {
+        if (! $this->hasAbility($scopeOrCapability)) {
             throw new AuthorizationException(
                 "Missing required permission: {$scopeOrCapability}",
                 $scopeOrCapability
@@ -323,7 +368,7 @@ final class AppContext implements Arrayable, Jsonable, JsonSerializable, Stringa
      */
     public function requiresAny(array $permissions): void
     {
-        if (! $this->hasAnyScope($permissions) && ! $this->hasAnyCapability($permissions)) {
+        if (! $this->hasAnyAbility($permissions)) {
             throw new AuthorizationException(
                 'Missing required permission. Required one of: ' . implode(', ', $permissions),
                 $permissions

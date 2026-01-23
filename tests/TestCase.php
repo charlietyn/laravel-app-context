@@ -53,7 +53,15 @@ abstract class TestCase extends Orchestra
                 'subdomains' => ['www', null],
                 'path_prefixes' => ['/site'],
                 'auth_mode' => 'jwt_or_anonymous',
-                'allowed_scopes' => ['site:*'],
+                'allowed_scopes' => ['site:*', 'public:read', 'catalog:browse'],
+                'public_scopes' => ['public:read', 'catalog:browse'],
+                'anonymous_on_invalid_token' => false,
+                'features' => [
+                    'allow_anonymous' => true,
+                ],
+                'audit' => [
+                    'enabled' => false,
+                ],
             ],
             'partner' => [
                 'subdomains' => ['partners'],

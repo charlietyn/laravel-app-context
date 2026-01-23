@@ -22,6 +22,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class InjectAuditContext
 {
+    protected array $baseConfig;
     protected bool $enabled;
     protected bool $logAllRequests;
     protected bool $includeRequestBody;
@@ -30,17 +31,8 @@ class InjectAuditContext
 
     public function __construct()
     {
-        $config = config('app-context.audit', []);
-        $this->enabled = $config['enabled'] ?? true;
-        $this->logAllRequests = $config['log_all_requests'] ?? false;
-        $this->includeRequestBody = $config['include_request_body'] ?? false;
-        $this->includeResponseBody = $config['include_response_body'] ?? false;
-        $this->sensitiveHeaders = $config['sensitive_headers'] ?? [
-            'authorization',
-            'x-api-key',
-            'cookie',
-            'x-csrf-token',
-        ];
+        $this->baseConfig = config('app-context.audit', []);
+        $this->applyConfig($this->baseConfig);
     }
 
     /**
@@ -48,12 +40,13 @@ class InjectAuditContext
      */
     public function handle(Request $request, Closure $next): Response
     {
+        /** @var AppContext|null $context */
+        $context = $request->attributes->get('app_context');
+        $this->applyConfig($this->resolveConfig($context));
+
         if (! $this->enabled) {
             return $next($request);
         }
-
-        /** @var AppContext|null $context */
-        $context = $request->attributes->get('app_context');
 
         if ($context !== null) {
             // Share context with all log entries
@@ -132,5 +125,36 @@ class InjectAuditContext
         }
 
         return $filtered;
+    }
+
+    /**
+     * Resolve audit configuration for the current channel.
+     */
+    protected function resolveConfig(?AppContext $context): array
+    {
+        if ($context === null) {
+            return $this->baseConfig;
+        }
+
+        $channelConfig = config("app-context.channels.{$context->getAppId()}.audit", []);
+
+        return array_replace_recursive($this->baseConfig, $channelConfig);
+    }
+
+    /**
+     * Apply audit configuration to middleware state.
+     */
+    protected function applyConfig(array $config): void
+    {
+        $this->enabled = $config['enabled'] ?? true;
+        $this->logAllRequests = $config['log_all_requests'] ?? false;
+        $this->includeRequestBody = $config['include_request_body'] ?? false;
+        $this->includeResponseBody = $config['include_response_body'] ?? false;
+        $this->sensitiveHeaders = $config['sensitive_headers'] ?? [
+            'authorization',
+            'x-api-key',
+            'cookie',
+            'x-csrf-token',
+        ];
     }
 }

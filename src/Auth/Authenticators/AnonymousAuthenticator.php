@@ -6,6 +6,7 @@ namespace Ronu\AppContext\Auth\Authenticators;
 
 use Ronu\AppContext\Context\AppContext;
 use Ronu\AppContext\Contracts\AuthenticatorInterface;
+use Ronu\AppContext\Support\PublicScopeResolver;
 use Illuminate\Http\Request;
 
 /**
@@ -13,8 +14,6 @@ use Illuminate\Http\Request;
  */
 final class AnonymousAuthenticator implements AuthenticatorInterface
 {
-    private const DEFAULT_SCOPES = ['public:read', 'catalog:browse'];
-
     private readonly array $channels;
 
     public function __construct(array $config)
@@ -67,21 +66,7 @@ final class AnonymousAuthenticator implements AuthenticatorInterface
     private function getAnonymousScopes(string $channelId): array
     {
         $channelConfig = $this->channels[$channelId] ?? [];
-        $allowedScopes = $channelConfig['allowed_scopes'] ?? [];
 
-        // Filter to only non-wildcard, public-safe scopes
-        $publicScopes = array_filter($allowedScopes, function ($scope) {
-            // Only allow specific public scopes, not wildcards
-            if (str_contains($scope, '*')) {
-                return false;
-            }
-
-            // Allow scopes that are explicitly public
-            return str_starts_with($scope, 'public:')
-                || str_starts_with($scope, 'catalog:')
-                || in_array($scope, self::DEFAULT_SCOPES, true);
-        });
-
-        return ! empty($publicScopes) ? array_values($publicScopes) : self::DEFAULT_SCOPES;
+        return PublicScopeResolver::resolve($channelConfig);
     }
 }
