@@ -69,6 +69,18 @@ Edit `config/app-context.php` to define your channels:
         'auth_mode' => 'api_key',
         'allowed_capabilities' => ['partner:*'],
     ],
+
+    'site' => [
+        'subdomains' => ['www', null],
+        'path_prefixes' => ['/site'],
+        'auth_mode' => 'jwt_or_anonymous',
+        'allowed_scopes' => ['site:*', 'catalog:browse', 'public:read'],
+        'public_scopes' => ['catalog:browse', 'public:read'],
+        'anonymous_on_invalid_token' => false,
+        'audit' => [
+            'enabled' => false,
+        ],
+    ],
 ],
 ```
 
@@ -85,23 +97,34 @@ Route::middleware(['app-context'])->group(function () {
 // Or use individual middleware
 Route::middleware([
     'app.context',      // Resolve context
+    'app.throttle',     // Rate limit
     'app.auth',         // Authenticate
     'app.binding',      // Enforce bindings
-    'app.throttle',     // Rate limit
+    'app.requires',     // Require scopes/capabilities (per-route)
     'app.audit',        // Audit logging
 ])->group(function () {
     // ...
 });
 ```
 
-### 3. Require Scopes
+### 3. Require Abilities (recommended)
+
+```php
+Route::middleware(['app.requires:admin:users:read'])
+    ->get('/api/users', [UserController::class, 'index']);
+
+Route::middleware(['app.requires:admin:users:write,admin:users:delete'])
+    ->delete('/api/users/{id}', [UserController::class, 'destroy']);
+
+Route::middleware(['app.requires.all:admin:users:read,admin:users:write'])
+    ->put('/api/users/{id}', [UserController::class, 'update']);
+```
+
+Legacy aliases remain available:
 
 ```php
 Route::middleware(['app.scope:admin:users:read'])
     ->get('/api/users', [UserController::class, 'index']);
-
-Route::middleware(['app.scope:admin:users:write,admin:users:delete'])
-    ->delete('/api/users/{id}', [UserController::class, 'destroy']);
 ```
 
 ---
@@ -115,7 +138,8 @@ The package ships with granular middleware so you can compose a secure pipeline 
 | `app.context` | Resolve channel + context |
 | `app.auth` | Authenticate (JWT, API Key, or anonymous) |
 | `app.binding` | Enforce channel/tenant binding |
-| `app.scope` | Enforce scopes/capabilities |
+| `app.scope` | Enforce scopes/capabilities (legacy) |
+| `app.requires` | Enforce scopes/capabilities (recommended) |
 | `app.throttle` | Context-aware rate limiting |
 | `app.audit` | Inject context into logs |
 
@@ -124,9 +148,10 @@ The package ships with granular middleware so you can compose a secure pipeline 
 ```php
 Route::middleware([
     'app.context',
+    'app.throttle',
     'app.auth',
     'app.binding',
-    'app.throttle',
+    'app.requires',
     'app.audit',
 ])->group(function () {
     // Protected routes
@@ -138,13 +163,15 @@ Route::middleware([
 ```php
 Route::middleware([
     'app.context',
-    'app.binding',
     'app.throttle',
+    'app.binding',
     'app.audit',
 ])->post('/api/login', [AuthController::class, 'login']);
 ```
 
 **API Key endpoints:** there is no login route. The API key is sent on every request and validated by `app.auth`.
+
+**Avoid double rate limiting:** if you enable `app.throttle` (`RateLimitByContext`) in your API group, remove Laravel's default `throttle:api` middleware (or set it to a very high limit) to prevent double throttling.
 
 ---
 
@@ -538,6 +565,11 @@ if ($context->hasScope('admin:users:read')) {
 
 // Require permission (throws exception if missing)
 $context->requires('admin:export:run');
+
+// Ability check across scopes/capabilities
+if ($context->hasAbility('catalog:browse')) {
+    // ...
+}
 ```
 
 ### In Controllers
@@ -586,11 +618,11 @@ The recommended middleware order:
 
 ```
 1. ResolveAppContext    -> Detect channel from host/path
-2. AuthenticateChannel  -> JWT/API Key authentication
-3. EnforceContextBinding-> Validate audience/tenant
-4. RateLimitByContext   -> Apply rate limits
-5. InjectAuditContext   -> Inject context into logs
-6. RequireScope         -> Check permissions (per-route)
+2. RateLimitByContext   -> Apply rate limits
+3. AuthenticateChannel  -> JWT/API Key authentication
+4. EnforceContextBinding-> Validate audience/tenant
+5. RequireAbility       -> Check permissions (per-route)
+6. InjectAuditContext   -> Inject context into logs
 ```
 
 ---

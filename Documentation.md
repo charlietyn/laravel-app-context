@@ -1,7 +1,7 @@
 # Repo Findings Summary
 
 - Package name: `ronu/laravel-app-context` with Laravel 11/12 support and JWT via `php-open-source-saver/jwt-auth`. The service provider is `Ronu\AppContext\AppContextServiceProvider`. 
-- Middleware provided: `app.context`, `app.auth`, `app.binding`, `app.scope`, `app.throttle`, `app.audit`, plus `app-context` group. 
+- Middleware provided: `app.context`, `app.auth`, `app.binding`, `app.scope`, `app.requires`, `app.throttle`, `app.audit`, plus `app-context` group. 
 - Configuration lives in `config/app-context.php` (channels, client repository, JWT, API keys, rate limiting, security, audit, public routes). 
 - Storage: config-based clients or database-backed repositories (legacy `api_clients` or recommended `api_apps` + `api_app_keys`). 
 - JWT verification includes strict algorithm checks and audience/issuer validation; API key verification uses headers `X-Client-Id` and `X-Api-Key` by default.
@@ -59,17 +59,17 @@ Laravel auto-discovers the service provider via `composer.json`. If auto-discove
 ```mermaid
 flowchart TD
     A[Incoming Request] --> B[ResolveAppContext (host/path)]
-    B --> C{Auth Mode}
+    B --> H[RateLimitByContext]
+    H --> C{Auth Mode}
     C -->|jwt| D[AuthenticateChannel: JWT]
     C -->|api_key| E[AuthenticateChannel: API Key]
     C -->|anonymous| F[AuthenticateChannel: Anonymous]
     D --> G[EnforceContextBinding]
     E --> G[EnforceContextBinding]
     F --> G[EnforceContextBinding]
-    G --> H[RateLimitByContext]
-    H --> I[InjectAuditContext]
-    I --> J[RequireScope (per-route)]
-    J --> K[Controller / App Logic]
+    G --> J[RequireAbility (per-route)]
+    J --> I[InjectAuditContext]
+    I --> K[Controller / App Logic]
 ```
 
 ## 5) Middleware Reference
@@ -79,11 +79,13 @@ flowchart TD
 | Middleware | Purpose | Where to register | Order | Applies to |
 |---|---|---|---|---|
 | `app.context` | Resolve channel + base context from host/path | Route group (or `app-context` group) | 1 | dashboard, mobile, b2b |
-| `app.auth` | Authenticate per channel (`jwt`, `api_key`, `anonymous`) | Route group | 2 | dashboard, mobile, b2b |
-| `app.binding` | Enforce audience/tenant binding | Route group | 3 | dashboard, mobile, b2b |
-| `app.throttle` | Context-aware rate limiting | Route group | 4 | dashboard, mobile, b2b |
+| `app.throttle` | Context-aware rate limiting | Route group | 2 | dashboard, mobile, b2b |
+| `app.auth` | Authenticate per channel (`jwt`, `api_key`, `anonymous`) | Route group | 3 | dashboard, mobile, b2b |
+| `app.binding` | Enforce audience/tenant binding | Route group | 4 | dashboard, mobile, b2b |
 | `app.audit` | Inject context into logs | Route group | 5 | dashboard, mobile, b2b |
-| `app.scope` | Enforce scopes/capabilities (OR) | Per-route | After auth/binding | dashboard, mobile, b2b |
+| `app.requires` | Enforce scopes/capabilities (OR) | Per-route | After auth/binding | dashboard, mobile, b2b |
+| `app.requires.all` | Enforce scopes/capabilities (AND) | Per-route | After auth/binding | dashboard, mobile, b2b |
+| `app.scope` | Enforce scopes/capabilities (legacy) | Per-route | After auth/binding | dashboard, mobile, b2b |
 
 **Note:** There is an additional middleware class `Ronu\AppContext\Middleware\RequireAllScopes`, but it is not aliased by the service provider. If you want to use it, register an alias in your app (see below).
 
@@ -108,6 +110,8 @@ protected $routeMiddleware = [
     'app.scope.all' => Ronu\AppContext\Middleware\RequireAllScopes::class,
 ];
 ```
+
+**Avoid double rate limiting:** if you enable `app.throttle` (`RateLimitByContext`) in your API group, remove Laravel's default `throttle:api` middleware (or set it to a very high limit) to prevent double throttling.
 
 ## 6) Configuration
 
@@ -138,7 +142,10 @@ Each channel in `config/app-context.php` defines:
 - **`auth_mode`**: `jwt`, `api_key`, `anonymous`, or `jwt_or_anonymous`.  
 - **`jwt_audience`**: expected `aud` for JWT channels.  
 - **`allowed_scopes`** / **`allowed_capabilities`**: allow-list for JWT/API key permissions.  
+- **`public_scopes`**: public scopes for anonymous or `jwt_or_anonymous` fallback.  
+- **`anonymous_on_invalid_token`**: allow optional fallback to anonymous when JWT is invalid (default false).  
 - **`tenant_mode`**: `single` or `multi`.  
+- **`audit`**: per-channel audit overrides (`enabled`, `log_all_requests`, etc.).  
 
 ### API Key Headers
 
@@ -281,7 +288,7 @@ Route::prefix('api')->middleware([
     'app.audit',
 ])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->middleware('app.scope:admin:dashboard:read');
+        ->middleware('app.requires:admin:dashboard:read');
 });
 ```
 
@@ -299,7 +306,7 @@ Route::prefix('mobile')->middleware([
     'app.audit',
 ])->group(function () {
     Route::get('/orders', [OrderController::class, 'index'])
-        ->middleware('app.scope:mobile:orders:read');
+        ->middleware('app.requires:mobile:orders:read');
 });
 ```
 
@@ -317,7 +324,7 @@ Route::prefix('partner')->middleware([
     'app.audit',
 ])->group(function () {
     Route::get('/inventory', [PartnerInventoryController::class, 'index'])
-        ->middleware('app.scope:partner:inventory:read');
+        ->middleware('app.requires:partner:inventory:read');
 });
 ```
 

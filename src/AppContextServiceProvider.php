@@ -19,6 +19,8 @@ use Ronu\AppContext\Middleware\AuthenticateChannel;
 use Ronu\AppContext\Middleware\EnforceContextBinding;
 use Ronu\AppContext\Middleware\InjectAuditContext;
 use Ronu\AppContext\Middleware\RateLimitByContext;
+use Ronu\AppContext\Middleware\RequireAbility;
+use Ronu\AppContext\Middleware\RequireAllAbilities;
 use Ronu\AppContext\Middleware\RequireScope;
 use Ronu\AppContext\Middleware\ResolveAppContext;
 use Ronu\AppContext\Repositories\ConfigClientRepository;
@@ -229,15 +231,17 @@ class AppContextServiceProvider extends ServiceProvider
         $router->aliasMiddleware('app.auth', AuthenticateChannel::class);
         $router->aliasMiddleware('app.binding', EnforceContextBinding::class);
         $router->aliasMiddleware('app.scope', RequireScope::class);
+        $router->aliasMiddleware('app.requires', RequireAbility::class);
+        $router->aliasMiddleware('app.requires.all', RequireAllAbilities::class);
         $router->aliasMiddleware('app.throttle', RateLimitByContext::class);
         $router->aliasMiddleware('app.audit', InjectAuditContext::class);
 
         // Middleware group for full context pipeline
         $router->middlewareGroup('app-context', [
             ResolveAppContext::class,
+            RateLimitByContext::class,
             AuthenticateChannel::class,
             EnforceContextBinding::class,
-            RateLimitByContext::class,
             InjectAuditContext::class,
         ]);
     }

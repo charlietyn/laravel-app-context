@@ -8,6 +8,7 @@ use Ronu\AppContext\Auth\Verifiers\JwtVerifier;
 use Ronu\AppContext\Context\AppContext;
 use Ronu\AppContext\Contracts\AuthenticatorInterface;
 use Ronu\AppContext\Exceptions\AuthenticationException;
+use Ronu\AppContext\Support\PublicScopeResolver;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -43,28 +44,7 @@ final class JwtAuthenticator implements AuthenticatorInterface
             return $context;
         }
 
-        // Verify JWT
-        $claims = $this->verifier->verify($request);
-
-        // Load user
-        $user = $this->loadUser($claims['sub']);
-        if ($user === null) {
-            throw AuthenticationException::userNotFound();
-        }
-
-        // Set user in auth
-        Auth::setUser($user);
-
-        // Build scopes
-        $scopes = $this->buildScopes($claims, $user, $context);
-
-        // Create enriched context
-        return AppContext::fromJwt(
-            appId: $context->getAppId(),
-            claims: array_merge($claims, ['scp' => $scopes]),
-            ipAddress: $context->getIpAddress(),
-            requestId: $context->getRequestId(),
-        );
+        return $this->authenticateWithToken($request, $context);
     }
 
     /**
@@ -109,23 +89,47 @@ final class JwtAuthenticator implements AuthenticatorInterface
     {
         try {
             if (! $this->verifier->canHandle($request)) {
-                // No token provided, return anonymous context
-                return AppContext::anonymous(
-                    appId: $context->getAppId(),
-                    ipAddress: $context->getIpAddress(),
-                    requestId: $context->getRequestId(),
-                );
+                // No token provided, return anonymous context with public scopes
+                return $this->buildAnonymousContext($context);
             }
 
-            return $this->authenticate($request, $context);
-        } catch (AuthenticationException) {
-            // Token invalid, return anonymous context
-            return AppContext::anonymous(
-                appId: $context->getAppId(),
-                ipAddress: $context->getIpAddress(),
-                requestId: $context->getRequestId(),
-            );
+            return $this->authenticateWithToken($request, $context);
+        } catch (AuthenticationException $exception) {
+            if ($this->shouldFallbackOnInvalidToken($context)) {
+                return $this->buildAnonymousContext($context);
+            }
+
+            throw $exception;
         }
+    }
+
+    /**
+     * Authenticate the request when a JWT is required or present.
+     */
+    private function authenticateWithToken(Request $request, AppContext $context): AppContext
+    {
+        // Verify JWT
+        $claims = $this->verifier->verify($request);
+
+        // Load user
+        $user = $this->loadUser($claims['sub']);
+        if ($user === null) {
+            throw AuthenticationException::userNotFound();
+        }
+
+        // Set user in auth
+        Auth::setUser($user);
+
+        // Build scopes
+        $scopes = $this->buildScopes($claims, $user, $context);
+
+        // Create enriched context
+        return AppContext::fromJwt(
+            appId: $context->getAppId(),
+            claims: array_merge($claims, ['scp' => $scopes]),
+            ipAddress: $context->getIpAddress(),
+            requestId: $context->getRequestId(),
+        );
     }
 
     /**
@@ -177,6 +181,31 @@ final class JwtAuthenticator implements AuthenticatorInterface
         }
 
         return array_unique($scopes);
+    }
+
+    /**
+     * Build an anonymous context with public scopes for jwt_or_anonymous.
+     */
+    private function buildAnonymousContext(AppContext $context): AppContext
+    {
+        $channelConfig = $this->channels[$context->getAppId()] ?? [];
+        $publicScopes = PublicScopeResolver::resolve($channelConfig);
+
+        return AppContext::anonymous(
+            appId: $context->getAppId(),
+            ipAddress: $context->getIpAddress(),
+            requestId: $context->getRequestId(),
+        )->withScopes($publicScopes);
+    }
+
+    /**
+     * Determine if invalid tokens should fall back to anonymous access.
+     */
+    private function shouldFallbackOnInvalidToken(AppContext $context): bool
+    {
+        $channelConfig = $this->channels[$context->getAppId()] ?? [];
+
+        return (bool) ($channelConfig['anonymous_on_invalid_token'] ?? false);
     }
 
     /**
