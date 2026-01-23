@@ -65,7 +65,7 @@ class EnforceContextBinding
         if ($this->enforceAudience) {
             $tokenAudience = $context->getMetadataValue('audience');
 
-            if ($tokenAudience !== null && $tokenAudience !== $context->getAppId()) {
+            if ($tokenAudience !== null && ! $this->audienceMatches($tokenAudience, $context->getAppId())) {
                 throw ContextBindingException::audienceMismatch(
                     expected: $context->getAppId(),
                     actual: $tokenAudience
@@ -148,5 +148,17 @@ class EnforceContextBinding
         }
 
         return null;
+    }
+
+    /**
+     * Determine if token audience matches the expected channel.
+     */
+    protected function audienceMatches(string|array $tokenAudience, string $expected): bool
+    {
+        if (is_array($tokenAudience)) {
+            return in_array($expected, $tokenAudience, true);
+        }
+
+        return $tokenAudience === $expected;
     }
 }
