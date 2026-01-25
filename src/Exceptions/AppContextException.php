@@ -7,11 +7,12 @@ namespace Ronu\AppContext\Exceptions;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /**
  * Base exception for all AppContext errors.
  */
-class AppContextException extends Exception
+class AppContextException extends Exception implements HttpExceptionInterface
 {
     protected string $errorCode = 'APP_CONTEXT_ERROR';
     protected int $httpStatus = 500;
@@ -67,5 +68,15 @@ class AppContextException extends Exception
     {
         // Don't report by default, let subclasses override
         return false;
+    }
+
+    public function getStatusCode(): int
+    {
+        return $this->httpStatus;
+    }
+
+    public function getHeaders(): array
+    {
+       return [];
     }
 }
