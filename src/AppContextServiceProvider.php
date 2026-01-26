@@ -10,6 +10,7 @@ use Ronu\AppContext\Auth\Authenticators\JwtAuthenticator;
 use Ronu\AppContext\Auth\Guards\AppContextGuard;
 use Ronu\AppContext\Auth\Verifiers\ApiKeyVerifier;
 use Ronu\AppContext\Auth\Verifiers\JwtVerifier;
+use Ronu\AppContext\Commands\RoutesByChannel;
 use Ronu\AppContext\Context\AppContext;
 use Ronu\AppContext\Context\ContextResolver;
 use Ronu\AppContext\Contracts\AuthenticatorInterface;
@@ -49,6 +50,7 @@ class AppContextServiceProvider extends ServiceProvider
         $this->registerAuthenticators();
         $this->registerScopeChecker();
         $this->registerAppContext();
+        $this->commands([RoutesByChannel::class]);
     }
 
     /**
