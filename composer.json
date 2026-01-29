@@ -1,6 +1,6 @@
 {
     "name": "ronu/laravel-app-context",
-    "version": "1.1.3",
+    "version": "1.1.4",
     "type": "library",
     "description": "Multi-channel application context management for Laravel with JWT and API Key authentication",
     "keywords": [
