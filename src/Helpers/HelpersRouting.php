@@ -29,7 +29,7 @@ class HelpersRouting
                 // Wrap the file requirement within a Route group that applies the namespace
                 Route::group([
                     'namespace' => $moduleNamespace,
-                    'as' => $channel . '.',
+                    'as' => $channel,
                 ], function () use ($filePath) {
                     require $filePath;
                 });
