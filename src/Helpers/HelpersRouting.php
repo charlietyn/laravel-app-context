@@ -24,7 +24,7 @@ class HelpersRouting
             if ($moduleDir && $moduleDir !== 'Modules') {
                 // Construct the fully qualified namespace (e.g., 'Modules\Audit\Http\Controllers')
                 // Using ucfirst() assumes module directory name matches the module's namespace casing
-                $moduleNamespace = 'Modules\\' . ucfirst($moduleDir) . '\\Http\\Controllers';
+                $moduleNamespace = 'Modules\\' . $moduleDir . '\\Http\\Controllers';
 
                 // Wrap the file requirement within a Route group that applies the namespace
                 Route::group([
