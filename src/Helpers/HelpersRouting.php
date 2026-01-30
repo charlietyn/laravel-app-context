@@ -21,7 +21,7 @@ class HelpersRouting
             // Extract the module directory name (e.g., 'audit' from '/modules/audit/Routes/api.php')
             $moduleDir = basename(dirname(dirname($filePath)));
 
-            if ($moduleDir && $moduleDir !== 'modules') {
+            if ($moduleDir && $moduleDir !== 'Modules') {
                 // Construct the fully qualified namespace (e.g., 'Modules\Audit\Http\Controllers')
                 // Using ucfirst() assumes module directory name matches the module's namespace casing
                 $moduleNamespace = 'Modules\\' . ucfirst($moduleDir) . '\\Http\\Controllers';
