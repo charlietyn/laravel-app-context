@@ -153,13 +153,33 @@ Default headers (configurable in `api_key.headers`):
 - `X-Client-Id` → client identifier (`app_code`)  
 - `X-Api-Key` → API key (format: `prefix.secret`)  
 
+### JWT Configuration for Reverse Proxy
+
+When your application is behind a reverse proxy (nginx, HAProxy, etc.) that terminates SSL, the protocol may change from `https` to `http` internally. This causes issuer validation to fail because the URLs don't match exactly.
+
+| Environment Variable | Description | Default |
+|---|---|---|
+| `JWT_IGNORE_ISSUER_SCHEME` | Ignore protocol (http/https) when validating issuer | `false` |
+
+**Usage example:**
+
+```env
+# .env
+JWT_ISSUER=https://api.example.com
+JWT_IGNORE_ISSUER_SCHEME=true
+```
+
+With this configuration, the following URLs will be considered equivalent:
+- `https://api.example.com/admin/login`
+- `http://api.example.com/admin/login`
+
 ### Secure Defaults
 
 Recommended production defaults already reflected in the config:
-- `deny_by_default = true`  
-- `security.strict_algorithm_check = true`  
-- `jwt.verify_aud = true` and `jwt.verify_iss = true`  
-- `api_key.hash_algorithm = argon2id`  
+- `deny_by_default = true`
+- `security.strict_algorithm_check = true`
+- `jwt.verify_aud = true` and `jwt.verify_iss = true`
+- `api_key.hash_algorithm = argon2id`
 - `security.enforce_tenant_binding = true`  
 
 ## 7) Authentication (JWT with php-open-source-saver/jwt-auth)
@@ -330,9 +350,10 @@ Route::prefix('partner')->middleware([
 
 ## 9) Troubleshooting
 
-- **“AppContext not resolved”** → Ensure `app.context` is first in the middleware chain.  
-- **JWT audience mismatch** → Ensure login issues tokens with `aud` matching channel (`admin`, `mobile`, etc.).  
-- **Tenant mismatch errors** → Confirm tenant id is provided in route param `tenant_id`/`tenantId`, header `X-Tenant-Id`, or query `tenant_id`.  
+- **"AppContext not resolved"** → Ensure `app.context` is first in the middleware chain.
+- **JWT audience mismatch** → Ensure login issues tokens with `aud` matching channel (`admin`, `mobile`, etc.).
+- **JWT issuer mismatch with reverse proxy** → If you're using a reverse proxy that changes the protocol (e.g., nginx with SSL termination), the token issuer (`https://`) may not match the internal URL (`http://`). Solution: set `JWT_IGNORE_ISSUER_SCHEME=true` in your `.env`.
+- **Tenant mismatch errors** → Confirm tenant id is provided in route param `tenant_id`/`tenantId`, header `X-Tenant-Id`, or query `tenant_id`.
 - **API key not accepted** → Verify `X-Client-Id` + `X-Api-Key` headers and ensure the key hash matches.  
 
 ## 10) Security Checklist
