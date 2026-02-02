@@ -146,6 +146,26 @@ Headers por defecto (configurable en `api_key.headers`):
 - `X-Client-Id` → identificador (`app_code`)
 - `X-Api-Key` → API key (`prefix.secret`)
 
+### Configuración JWT para proxy inverso
+
+Cuando tu aplicación está detrás de un proxy inverso (nginx, HAProxy, etc.) que termina SSL, el protocolo puede cambiar de `https` a `http` internamente. Esto causa que la validación del issuer falle porque las URLs no coinciden exactamente.
+
+| Variable de entorno | Descripción | Default |
+|---|---|---|
+| `JWT_IGNORE_ISSUER_SCHEME` | Ignora el protocolo (http/https) al validar el issuer | `false` |
+
+**Ejemplo de uso:**
+
+```env
+# .env
+JWT_ISSUER=https://api.tumerkado.com
+JWT_IGNORE_ISSUER_SCHEME=true
+```
+
+Con esta configuración, las siguientes URLs serán consideradas equivalentes:
+- `https://api.tumerkado.com/admin/login`
+- `http://api.tumerkado.com/admin/login`
+
 ### Defaults seguros
 
 Defaults recomendados ya presentes:
@@ -322,8 +342,9 @@ Route::prefix('partner')->middleware([
 
 ## 9) Solución de problemas
 
-- **“AppContext not resolved”** → Asegura que `app.context` es el primero.
+- **"AppContext not resolved"** → Asegura que `app.context` es el primero.
 - **JWT audience mismatch** → El login debe emitir tokens con `aud` correcto.
+- **JWT issuer mismatch con proxy inverso** → Si usas un proxy inverso que cambia el protocolo (ej. nginx con SSL termination), el issuer del token (`https://`) puede no coincidir con la URL interna (`http://`). Solución: configura `JWT_IGNORE_ISSUER_SCHEME=true` en tu `.env`.
 - **Errores de tenant** → Enviar `tenant_id` por ruta, query o header `X-Tenant-Id`.
 - **API key inválida** → Verifica `X-Client-Id` + `X-Api-Key` y hash.
 
