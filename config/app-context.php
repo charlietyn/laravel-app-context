@@ -400,6 +400,11 @@ return [
         // Verify issuer claim
         'verify_iss' => env('JWT_VERIFY_ISS', true),
 
+        // Ignore protocol (scheme) when validating issuer
+        // Useful for reverse proxy scenarios where protocol may change (http/https)
+        // When enabled, only the host and path are compared, ignoring the scheme
+        'ignore_issuer_scheme' => env('JWT_IGNORE_ISSUER_SCHEME', false),
+
         // Verify audience claim
         'verify_aud' => env('JWT_VERIFY_AUD', true),
 

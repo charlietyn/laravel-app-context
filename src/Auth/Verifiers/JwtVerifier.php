@@ -37,6 +37,7 @@ final class JwtVerifier implements VerifierInterface
     private readonly bool $verifyIssuer;
     private readonly bool $verifyAudience;
     private readonly ?string $expectedIssuer;
+    private readonly bool $ignoreIssuerScheme;
     private readonly array $tokenSources;
 
     public function __construct(
@@ -49,6 +50,7 @@ final class JwtVerifier implements VerifierInterface
         $this->verifyIssuer = $config['verify_iss'] ?? true;
         $this->verifyAudience = $config['verify_aud'] ?? true;
         $this->expectedIssuer = $config['issuer'] ?? null;
+        $this->ignoreIssuerScheme = $config['ignore_issuer_scheme'] ?? false;
         $this->tokenSources = $config['token_sources'] ?? ['header', 'query', 'cookie'];
     }
 
@@ -309,6 +311,13 @@ final class JwtVerifier implements VerifierInterface
         $expected = rtrim((string) $this->expectedIssuer, '/');
         $actual = rtrim($issuer, '/');
 
+        // When ignore_issuer_scheme is enabled, compare without protocol
+        // Useful for reverse proxy scenarios where http/https may differ
+        if ($this->ignoreIssuerScheme) {
+            $expected = $this->stripScheme($expected);
+            $actual = $this->stripScheme($actual);
+        }
+
         if ($actual === $expected) {
             return true;
         }
@@ -320,5 +329,17 @@ final class JwtVerifier implements VerifierInterface
         $nextChar = substr($actual, strlen($expected), 1);
 
         return $nextChar === '' || $nextChar === '/' || $nextChar === '?' || $nextChar === '#';
+    }
+
+    /**
+     * Remove the scheme (protocol) from a URL.
+     *
+     * Examples:
+     * - https://api.example.com -> api.example.com
+     * - http://api.example.com/path -> api.example.com/path
+     */
+    private function stripScheme(string $url): string
+    {
+        return preg_replace('#^https?://#i', '', $url) ?? $url;
     }
 }
