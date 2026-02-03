@@ -348,15 +348,291 @@ Route::prefix('partner')->middleware([
 });
 ```
 
-## 9) Troubleshooting
+## 9) Domain Configuration and Channel Resolution
+
+This section explains in detail how the system detects and resolves channels based on the host and path of the request. It is **critical** for understanding why a request may fail with the error "Request does not match any configured channel".
+
+### 9.1) The Channel Resolution Flow
+
+```mermaid
+flowchart TD
+    A[Request: tenant.example.com/site/products] --> B{Detection Strategy}
+    B -->|auto| C[Check auto_detection_rules]
+    B -->|path| D[Resolve by path only]
+    B -->|subdomain| E[Resolve by subdomain only]
+    B -->|strict| F[Both must match]
+
+    C --> G{Does host match a rule?}
+    G -->|Yes: localhost| D
+    G -->|Yes: *.ngrok.io| D
+    G -->|No match| H{Is dev environment?}
+    H -->|Yes| D
+    H -->|No| E
+
+    E --> I[extractSubdomain]
+    I --> J{Domain configured?}
+    J -->|localhost default| K[Fallback: take first part]
+    J -->|example.com| L[Regex extracts subdomain correctly]
+
+    K --> M[matchSubdomain]
+    L --> M
+    M --> N{Channel found?}
+    N -->|Yes| O[Create AppContext]
+    N -->|No| P[Error: deny_by_default]
+```
+
+### 9.2) Base Domain Configuration
+
+**This is the most important configuration for production.**
+
+```php
+// config/app-context.php line 102
+'domain' => env('APP_CONTEXT_DOMAIN', env('APP_DOMAIN', 'localhost')),
+```
+
+#### Why is it critical to configure?
+
+The `extractSubdomain()` method uses this value to extract the subdomain from the host:
+
+```php
+// src/Context/ContextResolver.php lines 162-166
+$domain = preg_quote($this->domain, '/');
+if (preg_match('/^([^.]+)\.' . $domain . '$/', $host, $matches)) {
+    return $matches[1];  // The extracted subdomain
+}
+```
+
+**Example with INCORRECTLY configured domain (localhost default):**
+
+| Host | Config Domain | Generated Regex | Result |
+|------|---------------|-----------------|--------|
+| `tenant.example.com` | `localhost` | `/^([^.]+)\.localhost$/` | ❌ NO MATCH |
+| `admin.localhost` | `localhost` | `/^([^.]+)\.localhost$/` | ✅ `admin` |
+
+**Example with CORRECTLY configured domain:**
+
+| Host | Config Domain | Generated Regex | Result |
+|------|---------------|-----------------|--------|
+| `tenant.example.com` | `example.com` | `/^([^.]+)\.example\.com$/` | ✅ `tenant` |
+| `www.example.com` | `example.com` | `/^([^.]+)\.example\.com$/` | ✅ `www` |
+
+#### Configure in .env
+
+```env
+# REQUIRED for production
+APP_CONTEXT_DOMAIN=example.com
+
+# Or alternatively
+APP_DOMAIN=example.com
+```
+
+### 9.3) Detection Strategies
+
+| Strategy | Description | When to use |
+|----------|-------------|-------------|
+| `auto` | Smart: uses rules to decide | **Recommended** - Handles dev and prod |
+| `path` | Uses path prefixes only (`/api/*`, `/mobile/*`) | Local development, ngrok |
+| `subdomain` | Uses subdomains only (`admin.`, `mobile.`) | Production with subdomains |
+| `strict` | Subdomain AND path must match | Maximum security |
+
+#### Auto-Detection Rules
+
+```php
+'auto_detection_rules' => [
+    'localhost' => 'path',              // http://localhost/api → path
+    '127.0.0.1' => 'path',              // http://127.0.0.1/mobile → path
+    '*.localhost' => 'subdomain',       // http://api.localhost → subdomain
+    '*.ngrok.io' => 'path',             // https://abc.ngrok.io/api → path
+    '*.ngrok-free.app' => 'path',       // https://abc.ngrok-free.app → path
+    '*.test' => 'path',                 // http://myapp.test/api → path
+    '*.local' => 'path',                // http://myapp.local/api → path
+    // All other hosts → 'subdomain' (production)
+],
+```
+
+#### Add rule for your custom domain
+
+```php
+'auto_detection_rules' => [
+    // ... existing rules ...
+
+    // Add your production domain
+    '*.example.com' => 'subdomain',     // Use subdomains
+    // Or if you prefer path:
+    // '*.example.com' => 'path',       // Use path prefixes
+],
+```
+
+### 9.4) Channel Definition with Subdomains
+
+```php
+'channels' => [
+    'site' => [
+        // IMPORTANT: List all subdomains that should resolve to this channel
+        'subdomains' => [
+            'www',      // www.example.com
+            'tenant',   // tenant.example.com
+            'api',      // api.example.com
+            null,       // example.com (root domain without subdomain)
+        ],
+        'path_prefixes' => ['/site', '/shop'],
+        'auth_mode' => 'jwt_or_anonymous',
+        'jwt_audience' => 'site',
+        // ... rest of configuration
+    ],
+
+    'admin' => [
+        'subdomains' => ['admin', 'dashboard'],
+        'path_prefixes' => ['/api'],
+        // ...
+    ],
+],
+```
+
+### 9.5) Common Scenarios and Solutions
+
+#### Scenario 1: Custom subdomain doesn't work
+
+**Problem:** `https://mystore.example.com/site/products` → Error "Request does not match any configured channel"
+
+**Diagnosis:**
+1. Is `APP_CONTEXT_DOMAIN=example.com` configured? ❌
+2. Does the channel have `'mystore'` in `subdomains`? ❌
+
+**Solution:**
+```env
+# .env
+APP_CONTEXT_DOMAIN=example.com
+```
+
+```php
+// config/app-context.php
+'site' => [
+    'subdomains' => ['www', 'mystore', null],
+    // ...
+]
+```
+
+#### Scenario 2: Multiple tenants with dynamic subdomains
+
+**Problem:** Each tenant has their subdomain: `tenant1.example.com`, `tenant2.example.com`, etc.
+
+**Solution:** Use `path` detection instead of `subdomain`:
+
+```php
+// config/app-context.php
+'auto_detection_rules' => [
+    // Force path detection for your domain
+    '*.example.com' => 'path',
+],
+
+'channels' => [
+    'site' => [
+        'subdomains' => [],  // Doesn't matter
+        'path_prefixes' => ['/site', '/shop', '/'],  // Detect by path
+        // ...
+    ],
+],
+```
+
+#### Scenario 3: Local development vs Production
+
+**Problem:** Locally I use `localhost/api` but in production `admin.example.com`
+
+**Solution:** The `auto` strategy already handles this:
+
+```env
+# .env.local (development)
+APP_ENV=local
+APP_CONTEXT_DOMAIN=localhost
+# Will use path detection automatically
+
+# .env.production (production)
+APP_ENV=production
+APP_CONTEXT_DOMAIN=example.com
+# Will use subdomain detection automatically
+```
+
+#### Scenario 4: Ngrok or development tunnel
+
+**Problem:** `https://abc123.ngrok-free.app/site/products` doesn't work
+
+**Solution:** Ngrok is already configured in `auto_detection_rules` to use `path`:
+
+```php
+'auto_detection_rules' => [
+    '*.ngrok-free.app' => 'path',  // Already configured
+],
+```
+
+Just make sure your channel has the correct path prefix:
+```php
+'site' => [
+    'path_prefixes' => ['/site'],  // This will work with ngrok
+],
+```
+
+### 9.6) Debugging Channel Resolution
+
+To diagnose issues, you can create a test endpoint:
+
+```php
+// routes/web.php (only for debugging)
+Route::get('/debug-context', function (\Illuminate\Http\Request $request) {
+    $resolver = app(\Ronu\AppContext\Contracts\ContextResolverInterface::class);
+
+    $host = $request->getHost();
+    $path = '/' . ltrim($request->path(), '/');
+
+    return response()->json([
+        'host' => $host,
+        'path' => $path,
+        'configured_domain' => config('app-context.domain'),
+        'detection_strategy' => config('app-context.detection_strategy'),
+        'extracted_subdomain' => $resolver->extractSubdomain($host),
+        'matched_path_channel' => $resolver->matchPathPrefix($path),
+        'effective_strategy' => $resolver->getDetectionStrategy($host),
+        'channels_configured' => array_keys(config('app-context.channels')),
+    ]);
+});
+```
+
+**Example response:**
+```json
+{
+    "host": "tenant.example.com",
+    "path": "/site/catalog/products",
+    "configured_domain": "localhost",
+    "detection_strategy": "auto",
+    "extracted_subdomain": "tenant",
+    "matched_path_channel": "site",
+    "effective_strategy": "subdomain",
+    "channels_configured": ["mobile", "admin", "site", "partner"]
+}
+```
+
+### 9.7) Domain Configuration Checklist
+
+- [ ] `APP_CONTEXT_DOMAIN` configured in `.env` with your production domain
+- [ ] All subdomains listed in the corresponding channel
+- [ ] `null` included in `subdomains` if you want to support the root domain
+- [ ] Rule in `auto_detection_rules` if you need special behavior
+- [ ] `php artisan config:clear` executed after changes
+
+## 10) Troubleshooting
 
 - **"AppContext not resolved"** → Ensure `app.context` is first in the middleware chain.
+- **"Request does not match any configured channel"** → Verify:
+  1. `APP_CONTEXT_DOMAIN` is configured correctly
+  2. The subdomain is listed in the channel's `subdomains` array
+  3. The path prefix matches if using path detection
+  4. Run `php artisan config:clear` after changes
 - **JWT audience mismatch** → Ensure login issues tokens with `aud` matching channel (`admin`, `mobile`, etc.).
 - **JWT issuer mismatch with reverse proxy** → If you're using a reverse proxy that changes the protocol (e.g., nginx with SSL termination), the token issuer (`https://`) may not match the internal URL (`http://`). Solution: set `JWT_IGNORE_ISSUER_SCHEME=true` in your `.env`.
 - **Tenant mismatch errors** → Confirm tenant id is provided in route param `tenant_id`/`tenantId`, header `X-Tenant-Id`, or query `tenant_id`.
 - **API key not accepted** → Verify `X-Client-Id` + `X-Api-Key` headers and ensure the key hash matches.  
 
-## 10) Security Checklist
+## 11) Security Checklist
 
 - [ ] `deny_by_default = true` in production.  
 - [ ] `jwt.verify_aud = true` and `jwt.verify_iss = true`.  
@@ -366,6 +642,6 @@ Route::prefix('partner')->middleware([
 - [ ] Audit logging enabled for authentication failures.  
 - [ ] Rate limits configured per channel and endpoint.  
 
-## 11) Changelog Notes (breaking changes / upgrade tips)
+## 12) Changelog Notes (breaking changes / upgrade tips)
 
 N/A (no changelog files found in the repository).
