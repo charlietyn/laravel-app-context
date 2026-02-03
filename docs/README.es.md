@@ -4,202 +4,202 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/ronu/laravel-app-context.svg?style=flat-square)](https://packagist.org/packages/ronu/laravel-app-context)
 [![License](https://img.shields.io/packagist/l/ronu/laravel-app-context.svg?style=flat-square)](https://packagist.org/packages/ronu/laravel-app-context)
 
-**Multi-channel application context management for Laravel with JWT and API Key authentication.**
+**Gestión multi-canal de contexto de aplicación para Laravel con autenticación JWT y API Key.**
 
-> **Documentation:** [Spanish (Español)](README.es.md) | [Architecture](ARCHITECTURE.md) | [Security](SECURITY.md) | [Migration](MIGRATION.md) | [Examples](EXAMPLES.md)
+> **Documentación:** [English](README.md) | [Arquitectura](ARCHITECTURE.md) | [Seguridad](SECURITY.md) | [Migración](MIGRATION.md) | [Ejemplos](EXAMPLES.md)
 
 ---
 
-## Table of Contents
+## Tabla de Contenidos
 
-1. [Introduction](#introduction)
-2. [Why Laravel App Context?](#why-laravel-app-context)
-3. [Key Features](#key-features)
-4. [Requirements](#requirements)
-5. [Installation](#installation)
-6. [Quick Start (10 minutes)](#quick-start-10-minutes)
-7. [Core Concepts](#core-concepts)
-8. [Architecture](#architecture)
-9. [Configuration Reference](#configuration-reference)
-10. [Middleware Pipeline](#middleware-pipeline)
-11. [Authentication Flows](#authentication-flows)
-12. [Client Repository](#client-repository)
+1. [Introducción](#introducción)
+2. [¿Por qué Laravel App Context?](#por-qué-laravel-app-context)
+3. [Características Principales](#características-principales)
+4. [Requisitos](#requisitos)
+5. [Instalación](#instalación)
+6. [Inicio Rápido (10 minutos)](#inicio-rápido-10-minutos)
+7. [Conceptos Fundamentales](#conceptos-fundamentales)
+8. [Arquitectura](#arquitectura)
+9. [Referencia de Configuración](#referencia-de-configuración)
+10. [Pipeline de Middleware](#pipeline-de-middleware)
+11. [Flujos de Autenticación](#flujos-de-autenticación)
+12. [Repositorio de Clientes](#repositorio-de-clientes)
 13. [Rate Limiting](#rate-limiting)
-14. [Security Features](#security-features)
-15. [Artisan Commands](#artisan-commands)
+14. [Características de Seguridad](#características-de-seguridad)
+15. [Comandos Artisan](#comandos-artisan)
 16. [Testing](#testing)
-17. [Troubleshooting](#troubleshooting)
-18. [FAQ](#faq)
-19. [Glossary](#glossary)
-20. [License](#license)
+17. [Solución de Problemas](#solución-de-problemas)
+18. [Preguntas Frecuentes](#preguntas-frecuentes)
+19. [Glosario](#glosario)
+20. [Licencia](#licencia)
 
 ---
 
-## Introduction
+## Introducción
 
-**Laravel App Context** is a comprehensive multi-channel authentication and authorization library for Laravel 11/12 applications. It provides a unified approach to managing different application contexts (mobile apps, admin dashboards, partner APIs, public websites) with distinct authentication modes, scopes, and security policies.
+**Laravel App Context** es una biblioteca completa de autenticación y autorización multi-canal para aplicaciones Laravel 11/12. Proporciona un enfoque unificado para gestionar diferentes contextos de aplicación (apps móviles, dashboards de administración, APIs de partners, sitios web públicos) con modos de autenticación, scopes y políticas de seguridad distintas.
 
-The library introduces the concept of an **AppContext** - an immutable value object that encapsulates all authentication and authorization state for a request, including the channel, user identity, tenant, scopes, capabilities, and metadata. This context flows through your entire application, enabling consistent authorization decisions and audit logging.
+La biblioteca introduce el concepto de **AppContext** - un objeto de valor inmutable que encapsula todo el estado de autenticación y autorización de una petición, incluyendo el canal, identidad del usuario, tenant, scopes, capabilities y metadatos. Este contexto fluye a través de toda tu aplicación, permitiendo decisiones de autorización consistentes y logging de auditoría.
 
-Unlike traditional Laravel authentication that treats all API requests uniformly, Laravel App Context recognizes that modern applications serve multiple clients with different security requirements. A mobile app might need JWT authentication with device binding, while a B2B partner integration requires API keys with IP allowlists.
-
----
-
-## Why Laravel App Context?
-
-### The Problem
-
-Modern applications typically serve multiple clients:
-- **Mobile apps** requiring JWT with refresh tokens and device fingerprinting
-- **Admin dashboards** needing strict audience binding and audit trails
-- **Partner APIs** using API keys with IP restrictions and capability-based access
-- **Public websites** with optional authentication and anonymous access
-
-Laravel's native authentication handles single-context scenarios well, but becomes complex when you need:
-- Different authentication modes per route group
-- Channel-specific rate limiting
-- Multi-tenant isolation with token binding
-- Unified audit logging across all authentication types
-- Protection against token reuse across channels
-
-### The Solution
-
-Laravel App Context provides:
-
-| Challenge | Solution |
-|-----------|----------|
-| Multiple auth modes | Channel-based authentication (JWT, API Key, Anonymous) |
-| Token reuse attacks | Audience binding validates token's intended channel |
-| Multi-tenant isolation | Tenant binding in JWT claims with enforcement |
-| Complex rate limiting | Context-aware rate limiting per channel/endpoint |
-| Audit complexity | Automatic context injection into all logs |
-| Permission management | Unified scopes (JWT) and capabilities (API Key) |
-
-### When to Use (and When Not To)
-
-**Use Laravel App Context when:**
-- Your API serves multiple client types (mobile, web, partners)
-- You need different authentication modes per client type
-- Multi-tenant isolation is required
-- B2B integrations need API key management
-- You want unified audit logging across all auth types
-
-**Consider alternatives when:**
-- Single authentication mode is sufficient
-- No multi-tenant requirements
-- Simple API without channel separation
-- Laravel Sanctum/Passport meets all your needs
+A diferencia de la autenticación nativa de Laravel que trata todas las peticiones API de manera uniforme, Laravel App Context reconoce que las aplicaciones modernas sirven múltiples clientes con diferentes requisitos de seguridad. Una app móvil puede necesitar autenticación JWT con binding de dispositivo, mientras que una integración B2B con partners requiere API keys con listas de IPs permitidas.
 
 ---
 
-## Key Features
+## ¿Por qué Laravel App Context?
 
-### Authentication
-- **Multi-Auth Support**: JWT, API Key, and Anonymous authentication
-- **Channel-Based Routing**: Auto-detect channels from subdomain or path
-- **Optional JWT Mode**: `jwt_or_anonymous` for public-with-optional-auth routes
+### El Problema
 
-### Authorization
-- **Scope System**: JWT scopes with wildcard support (`admin:*`)
-- **Capability System**: API Key capabilities for B2B partners
-- **Unified Abilities**: Check scopes OR capabilities with single API
+Las aplicaciones modernas típicamente sirven múltiples clientes:
+- **Apps móviles** que requieren JWT con refresh tokens y fingerprinting de dispositivo
+- **Dashboards de administración** que necesitan binding estricto de audiencia y trails de auditoría
+- **APIs de partners** usando API keys con restricciones de IP y acceso basado en capabilities
+- **Sitios web públicos** con autenticación opcional y acceso anónimo
 
-### Security
-- **Algorithm Confusion Prevention**: Rejects `none` algorithm (CVE-2015-9235)
-- **Audience Binding**: Tokens locked to their intended channel
-- **Tenant Binding**: Prevents cross-tenant access
-- **IP Allowlists**: CIDR notation support for API keys
-- **Token Blacklist**: Redis-backed JWT invalidation
+La autenticación nativa de Laravel maneja bien escenarios de contexto único, pero se vuelve compleja cuando necesitas:
+- Diferentes modos de autenticación por grupo de rutas
+- Rate limiting específico por canal
+- Aislamiento multi-tenant con binding de tokens
+- Logging de auditoría unificado a través de todos los tipos de autenticación
+- Protección contra reutilización de tokens entre canales
 
-### Operations
-- **Context-Aware Rate Limiting**: Per-channel and per-endpoint limits
-- **Audit Logging**: Automatic context injection into all logs
-- **Usage Tracking**: API key usage statistics (async optional)
+### La Solución
 
-### Flexibility
-- **Repository Pattern**: Config, Eloquent, or custom client storage
-- **Middleware Composition**: Granular middleware for custom pipelines
-- **Extensible**: Custom authenticators and verifiers
+Laravel App Context proporciona:
+
+| Desafío | Solución |
+|---------|----------|
+| Múltiples modos de auth | Autenticación basada en canal (JWT, API Key, Anonymous) |
+| Ataques de reutilización de tokens | Binding de audiencia valida el canal objetivo del token |
+| Aislamiento multi-tenant | Binding de tenant en claims JWT con enforcement |
+| Rate limiting complejo | Rate limiting por contexto por canal/endpoint |
+| Complejidad de auditoría | Inyección automática de contexto en todos los logs |
+| Gestión de permisos | Scopes (JWT) y capabilities (API Key) unificados |
+
+### Cuándo Usar (y Cuándo No)
+
+**Usa Laravel App Context cuando:**
+- Tu API sirve múltiples tipos de cliente (móvil, web, partners)
+- Necesitas diferentes modos de autenticación por tipo de cliente
+- Se requiere aislamiento multi-tenant
+- Las integraciones B2B necesitan gestión de API keys
+- Quieres logging de auditoría unificado a través de todos los tipos de auth
+
+**Considera alternativas cuando:**
+- Un solo modo de autenticación es suficiente
+- No hay requisitos multi-tenant
+- API simple sin separación de canales
+- Laravel Sanctum/Passport cumple todas tus necesidades
 
 ---
 
-## Requirements
+## Características Principales
+
+### Autenticación
+- **Soporte Multi-Auth**: Autenticación JWT, API Key y Anónima
+- **Enrutamiento por Canal**: Detección automática de canales por subdominio o path
+- **Modo JWT Opcional**: `jwt_or_anonymous` para rutas públicas con auth opcional
+
+### Autorización
+- **Sistema de Scopes**: Scopes JWT con soporte de comodines (`admin:*`)
+- **Sistema de Capabilities**: Capabilities de API Key para partners B2B
+- **Abilities Unificadas**: Verifica scopes O capabilities con una sola API
+
+### Seguridad
+- **Prevención de Confusión de Algoritmo**: Rechaza el algoritmo `none` (CVE-2015-9235)
+- **Binding de Audiencia**: Tokens bloqueados a su canal objetivo
+- **Binding de Tenant**: Previene acceso cross-tenant
+- **Listas de IPs Permitidas**: Soporte de notación CIDR para API keys
+- **Blacklist de Tokens**: Invalidación de JWT respaldada por Redis
+
+### Operaciones
+- **Rate Limiting por Contexto**: Límites por canal y por endpoint
+- **Logging de Auditoría**: Inyección automática de contexto en todos los logs
+- **Tracking de Uso**: Estadísticas de uso de API key (async opcional)
+
+### Flexibilidad
+- **Patrón Repository**: Almacenamiento de clientes por Config, Eloquent o personalizado
+- **Composición de Middleware**: Middleware granular para pipelines personalizados
+- **Extensible**: Authenticators y verifiers personalizados
+
+---
+
+## Requisitos
 
 - **PHP**: 8.2+
-- **Laravel**: 11.0+ or 12.0+
-- **JWT Library**: `php-open-source-saver/jwt-auth` 2.0+
-- **Optional**: Redis for token blacklist and rate limiting
+- **Laravel**: 11.0+ o 12.0+
+- **Biblioteca JWT**: `php-open-source-saver/jwt-auth` 2.0+
+- **Opcional**: Redis para blacklist de tokens y rate limiting
 
 ---
 
-## Installation
+## Instalación
 
-### Step 1: Install via Composer
+### Paso 1: Instalar vía Composer
 
 ```bash
 composer require ronu/laravel-app-context
 ```
 
-### Step 2: Publish Configuration
+### Paso 2: Publicar Configuración
 
 ```bash
 php artisan vendor:publish --tag=app-context-config
 ```
 
-This creates `config/app-context.php` with all configuration options.
+Esto crea `config/app-context.php` con todas las opciones de configuración.
 
-### Step 3: Configure JWT (if using JWT authentication)
+### Paso 3: Configurar JWT (si usas autenticación JWT)
 
-If not already configured, set up JWT authentication:
+Si no está configurado, configura la autenticación JWT:
 
 ```bash
-# Generate JWT secret (for HS256)
+# Generar secreto JWT (para HS256)
 php artisan jwt:secret
 
-# Or generate RSA keys (recommended for production)
+# O generar claves RSA (recomendado para producción)
 mkdir -p storage/jwt
 openssl genrsa -out storage/jwt/private.pem 4096
 openssl rsa -in storage/jwt/private.pem -pubout -out storage/jwt/public.pem
 ```
 
-### Step 4: Configure Environment
+### Paso 4: Configurar Variables de Entorno
 
 ```env
 # Core
-APP_CONTEXT_DOMAIN=myapp.com
+APP_CONTEXT_DOMAIN=miapp.com
 APP_CONTEXT_DENY_BY_DEFAULT=true
 
 # JWT
 JWT_ALGO=RS256
 JWT_PUBLIC_KEY_PATH=storage/jwt/public.pem
 JWT_PRIVATE_KEY_PATH=storage/jwt/private.pem
-JWT_ISSUER=https://myapp.com
+JWT_ISSUER=https://miapp.com
 JWT_TTL=3600
 
-# API Key (if using)
+# API Key (si se usa)
 API_KEY_HASH_ALGO=argon2id
 ```
 
-### Step 5: Database Setup (if using Eloquent driver)
+### Paso 5: Configuración de Base de Datos (si usas driver Eloquent)
 
-If managing API clients via database, create the migrations:
+Si gestionas clientes API via base de datos, crea las migraciones:
 
 ```bash
 php artisan make:migration create_api_apps_table
 php artisan make:migration create_api_app_keys_table
 ```
 
-See [Client Repository](#client-repository) section for migration examples.
+Ver sección [Repositorio de Clientes](#repositorio-de-clientes) para ejemplos de migración.
 
 ---
 
-## Quick Start (10 minutes)
+## Inicio Rápido (10 minutos)
 
-This guide gets you from zero to a working protected API in 10 minutes.
+Esta guía te lleva de cero a una API protegida funcionando en 10 minutos.
 
-### 1. Configure a Channel
+### 1. Configurar un Canal
 
-Edit `config/app-context.php`:
+Edita `config/app-context.php`:
 
 ```php
 'channels' => [
@@ -214,7 +214,7 @@ Edit `config/app-context.php`:
 ],
 ```
 
-### 2. Create Protected Routes
+### 2. Crear Rutas Protegidas
 
 ```php
 // routes/api.php
@@ -226,7 +226,7 @@ Route::middleware(['app-context'])->prefix('mobile')->group(function () {
 });
 ```
 
-### 3. Create Login Route (without app.auth)
+### 3. Crear Ruta de Login (sin app.auth)
 
 ```php
 // routes/api.php
@@ -241,7 +241,7 @@ Route::middleware([
 });
 ```
 
-### 4. Implement Login Controller
+### 4. Implementar el Controlador de Login
 
 ```php
 <?php
@@ -263,12 +263,12 @@ class AuthController extends Controller
         ]);
 
         if (!Auth::attempt($credentials)) {
-            return response()->json(['message' => 'Invalid credentials'], 401);
+            return response()->json(['message' => 'Credenciales inválidas'], 401);
         }
 
-        // Bind context to JWT claims
+        // Vincular contexto a claims JWT
         $claims = [
-            'aud' => $context->getAppId(),  // Channel: 'mobile'
+            'aud' => $context->getAppId(),  // Canal: 'mobile'
             'tid' => $request->header('X-Tenant-Id'),
             'scp' => ['mobile:*', 'user:profile:*'],
         ];
@@ -284,7 +284,7 @@ class AuthController extends Controller
 }
 ```
 
-### 5. Implement Protected Controller
+### 5. Implementar el Controlador Protegido
 
 ```php
 <?php
@@ -297,7 +297,7 @@ class UserController extends Controller
 {
     public function profile(AppContext $context)
     {
-        // Context is automatically injected
+        // El contexto se inyecta automáticamente
         $context->requires('user:profile:read');
 
         return response()->json([
@@ -309,146 +309,146 @@ class UserController extends Controller
 }
 ```
 
-### 6. Test the Endpoint
+### 6. Probar el Endpoint
 
 ```bash
 # Login
-curl -X POST "https://mobile.myapp.com/mobile/login" \
+curl -X POST "https://mobile.miapp.com/mobile/login" \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"secret"}'
+  -d '{"email":"usuario@ejemplo.com","password":"secreto"}'
 
-# Response: {"access_token":"eyJ...", "token_type":"Bearer", "expires_in":3600}
+# Respuesta: {"access_token":"eyJ...", "token_type":"Bearer", "expires_in":3600}
 
-# Access protected endpoint
-curl -X GET "https://mobile.myapp.com/mobile/profile" \
+# Acceder a endpoint protegido
+curl -X GET "https://mobile.miapp.com/mobile/profile" \
   -H "Authorization: Bearer eyJ..."
 
-# Response: {"user_id":1, "channel":"mobile", "tenant":null}
+# Respuesta: {"user_id":1, "channel":"mobile", "tenant":null}
 ```
 
-**Congratulations!** You have a working protected API with channel-bound JWT authentication.
+**¡Felicitaciones!** Tienes una API protegida funcionando con autenticación JWT vinculada al canal.
 
 ---
 
-## Core Concepts
+## Conceptos Fundamentales
 
 ### AppContext
 
-The `AppContext` is an immutable value object that represents all authentication and authorization state for a request:
+El `AppContext` es un objeto de valor inmutable que representa todo el estado de autenticación y autorización de una petición:
 
 ```php
 use Ronu\AppContext\Context\AppContext;
 
 $context = AppContext::current();
 
-// Identity
-$context->getAppId();       // Channel: 'mobile', 'admin', 'partner'
+// Identidad
+$context->getAppId();       // Canal: 'mobile', 'admin', 'partner'
 $context->getAuthMode();    // 'jwt', 'api_key', 'anonymous'
-$context->getUserId();      // User ID from JWT
-$context->getClientId();    // API client ID
-$context->getTenantId();    // Tenant ID for multi-tenant apps
+$context->getUserId();      // ID de usuario del JWT
+$context->getClientId();    // ID del cliente API
+$context->getTenantId();    // ID de tenant para apps multi-tenant
 
-// Permissions
-$context->getScopes();      // JWT scopes: ['admin:users:read']
-$context->getCapabilities();// API Key capabilities: ['partner:orders:*']
+// Permisos
+$context->getScopes();      // Scopes JWT: ['admin:users:read']
+$context->getCapabilities();// Capabilities API Key: ['partner:orders:*']
 
-// Metadata
-$context->getDeviceId();    // Device fingerprint (mobile)
-$context->getIpAddress();   // Client IP
-$context->getRequestId();   // Unique request ID
-$context->getMetadata();    // Additional context data
+// Metadatos
+$context->getDeviceId();    // Fingerprint de dispositivo (móvil)
+$context->getIpAddress();   // IP del cliente
+$context->getRequestId();   // ID único de petición
+$context->getMetadata();    // Datos de contexto adicionales
 ```
 
-### Channels
+### Canales
 
-Channels represent different client types with their own authentication and authorization rules:
+Los canales representan diferentes tipos de cliente con sus propias reglas de autenticación y autorización:
 
-| Channel | Auth Mode | Use Case |
-|---------|-----------|----------|
-| `mobile` | JWT | Mobile applications |
-| `admin` | JWT | Admin dashboards, SPAs |
-| `site` | JWT or Anonymous | Public websites |
-| `partner` | API Key | B2B integrations |
+| Canal | Modo Auth | Caso de Uso |
+|-------|-----------|-------------|
+| `mobile` | JWT | Aplicaciones móviles |
+| `admin` | JWT | Dashboards de admin, SPAs |
+| `site` | JWT o Anonymous | Sitios web públicos |
+| `partner` | API Key | Integraciones B2B |
 
-Each channel defines:
-- **Detection**: How to identify requests (subdomain, path prefix)
-- **Authentication**: JWT, API Key, or Anonymous
-- **Authorization**: Allowed scopes/capabilities
-- **Rate Limiting**: Channel-specific limits
+Cada canal define:
+- **Detección**: Cómo identificar peticiones (subdominio, prefijo de path)
+- **Autenticación**: JWT, API Key o Anonymous
+- **Autorización**: Scopes/capabilities permitidos
+- **Rate Limiting**: Límites específicos del canal
 
-### Authentication Modes
+### Modos de Autenticación
 
-| Mode | Credentials | Use Case |
-|------|-------------|----------|
-| `jwt` | Bearer token | User authentication |
-| `api_key` | X-Client-Id + X-Api-Key headers | Machine-to-machine |
-| `anonymous` | None | Public endpoints |
-| `jwt_or_anonymous` | Optional Bearer token | Public with optional auth |
+| Modo | Credenciales | Caso de Uso |
+|------|--------------|-------------|
+| `jwt` | Token Bearer | Autenticación de usuarios |
+| `api_key` | Headers X-Client-Id + X-Api-Key | Máquina a máquina |
+| `anonymous` | Ninguna | Endpoints públicos |
+| `jwt_or_anonymous` | Token Bearer opcional | Público con auth opcional |
 
 ### Scopes vs Capabilities
 
-Both represent permissions, but serve different contexts:
+Ambos representan permisos, pero sirven contextos diferentes:
 
 **Scopes** (JWT):
-- Embedded in JWT tokens
-- User-centric permissions
-- Example: `admin:users:read`, `mobile:orders:create`
+- Incrustados en tokens JWT
+- Permisos centrados en el usuario
+- Ejemplo: `admin:users:read`, `mobile:orders:create`
 
 **Capabilities** (API Key):
-- Configured per API client
-- Client/application-centric permissions
-- Example: `partner:inventory:read`, `webhooks:send`
+- Configurados por cliente API
+- Permisos centrados en el cliente/aplicación
+- Ejemplo: `partner:inventory:read`, `webhooks:send`
 
-**Abilities** (Unified):
-- Check either scopes OR capabilities
-- Use when permission could come from either source
+**Abilities** (Unificado):
+- Verifica scopes O capabilities
+- Usar cuando el permiso puede venir de cualquier fuente
 
 ```php
-// Check specific type
+// Verificar tipo específico
 $context->hasScope('admin:users:read');
 $context->hasCapability('partner:orders:*');
 
-// Check either (unified)
+// Verificar cualquiera (unificado)
 $context->hasAbility('catalog:browse');
 ```
 
-### Wildcard Permissions
+### Permisos con Comodines
 
-Both scopes and capabilities support wildcards:
+Tanto scopes como capabilities soportan comodines:
 
 ```php
-// Scope 'admin:*' matches:
+// Scope 'admin:*' coincide con:
 $context->hasScope('admin:users:read');   // true
 $context->hasScope('admin:settings');     // true
 $context->hasScope('mobile:users:read');  // false
 ```
 
-### Tenant Binding
+### Binding de Tenant
 
-For multi-tenant applications, the library enforces tenant isolation:
+Para aplicaciones multi-tenant, la biblioteca enforce el aislamiento de tenant:
 
-1. JWT includes `tid` (tenant ID) claim
-2. Middleware extracts tenant from route/header/query
-3. `app.binding` validates they match
-4. Prevents cross-tenant access attacks
+1. El JWT incluye claim `tid` (tenant ID)
+2. El middleware extrae tenant de ruta/header/query
+3. `app.binding` valida que coincidan
+4. Previene ataques de acceso cross-tenant
 
 ```php
-// JWT claim: tid: "tenant_123"
-// Request to: /api/tenant_456/users
-// Result: ContextBindingException (tenant mismatch)
+// Claim JWT: tid: "tenant_123"
+// Petición a: /api/tenant_456/users
+// Resultado: ContextBindingException (tenant mismatch)
 ```
 
 ---
 
-## Architecture
+## Arquitectura
 
-### Component Overview
+### Visión General de Componentes
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Laravel Application                       │
+│                        Aplicación Laravel                        │
 ├─────────────────────────────────────────────────────────────────┤
-│  Middleware Pipeline                                             │
+│  Pipeline de Middleware                                          │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌────────────┐ │
 │  │ Resolve     │→│ RateLimit   │→│ Authenticate│→│ Enforce    │ │
 │  │ AppContext  │ │ ByContext   │ │ Channel     │ │ Binding    │ │
@@ -477,124 +477,124 @@ For multi-tenant applications, the library enforces tenant isolation:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Request Flow
+### Flujo de Petición
 
 ```mermaid
 flowchart TD
-    A[Incoming Request] --> B[ResolveAppContext]
-    B -->|Detect channel from host/path| C{Channel found?}
-    C -->|No| D{deny_by_default?}
-    D -->|Yes| E[ContextBindingException]
-    D -->|No| F[Anonymous context]
-    C -->|Yes| G[Create base AppContext]
+    A[Petición Entrante] --> B[ResolveAppContext]
+    B -->|Detectar canal desde host/path| C{¿Canal encontrado?}
+    C -->|No| D{¿deny_by_default?}
+    D -->|Sí| E[ContextBindingException]
+    D -->|No| F[Contexto anónimo]
+    C -->|Sí| G[Crear AppContext base]
 
     G --> H[RateLimitByContext]
     F --> H
-    H -->|Check rate limits| I{Rate limit exceeded?}
-    I -->|Yes| J[ThrottleRequestsException]
+    H -->|Verificar rate limits| I{¿Rate limit excedido?}
+    I -->|Sí| J[ThrottleRequestsException]
     I -->|No| K[AuthenticateChannel]
 
-    K -->|Get auth_mode| L{Auth Mode}
+    K -->|Obtener auth_mode| L{Modo Auth}
     L -->|jwt| M[JwtAuthenticator]
     L -->|api_key| N[ApiKeyAuthenticator]
     L -->|anonymous| O[AnonymousAuthenticator]
-    L -->|jwt_or_anonymous| P[JwtAuthenticator with fallback]
+    L -->|jwt_or_anonymous| P[JwtAuthenticator con fallback]
 
-    M --> Q[Enriched AppContext]
+    M --> Q[AppContext Enriquecido]
     N --> Q
     O --> Q
     P --> Q
 
     Q --> R[EnforceContextBinding]
-    R -->|Validate audience| S{Audience matches?}
+    R -->|Validar audiencia| S{¿Audiencia coincide?}
     S -->|No| T[ContextBindingException]
-    S -->|Yes| U{Tenant matches?}
+    S -->|Sí| U{¿Tenant coincide?}
     U -->|No| V[ContextBindingException]
-    U -->|Yes| W[RequireAbility per-route]
+    U -->|Sí| W[RequireAbility por ruta]
 
-    W --> X{Has required abilities?}
+    W --> X{¿Tiene abilities requeridas?}
     X -->|No| Y[AuthorizationException]
-    X -->|Yes| Z[InjectAuditContext]
+    X -->|Sí| Z[InjectAuditContext]
 
-    Z --> AA[Controller]
+    Z --> AA[Controlador]
 ```
 
-### JWT Authentication Flow
+### Flujo de Autenticación JWT
 
 ```mermaid
 sequenceDiagram
-    participant C as Client
+    participant C as Cliente
     participant M as Middleware
     participant JA as JwtAuthenticator
     participant JV as JwtVerifier
     participant AP as Auth Provider
 
-    C->>M: Request with Bearer token
+    C->>M: Petición con token Bearer
     M->>JA: authenticate(request, context)
-    JA->>JA: Extract token from header
+    JA->>JA: Extraer token del header
     JA->>JV: verify(token, context)
 
-    JV->>JV: Validate structure (3 parts)
-    JV->>JV: Check algorithm whitelist
-    JV->>JV: Verify signature
-    JV->>JV: Check blacklist
-    JV->>JV: Validate claims (aud, iss, exp)
-    JV-->>JA: Validated payload
+    JV->>JV: Validar estructura (3 partes)
+    JV->>JV: Verificar lista de algoritmos
+    JV->>JV: Verificar firma
+    JV->>JV: Verificar blacklist
+    JV->>JV: Validar claims (aud, iss, exp)
+    JV-->>JA: Payload validado
 
-    JA->>AP: Resolve user from sub claim
-    AP-->>JA: User model
+    JA->>AP: Resolver usuario desde claim sub
+    AP-->>JA: Modelo de usuario
 
-    JA->>JA: Build scopes from claims
-    JA->>JA: Create enriched AppContext
-    JA-->>M: AppContext with user + scopes
+    JA->>JA: Construir scopes desde claims
+    JA->>JA: Crear AppContext enriquecido
+    JA-->>M: AppContext con usuario + scopes
 ```
 
-### API Key Authentication Flow
+### Flujo de Autenticación API Key
 
 ```mermaid
 sequenceDiagram
-    participant C as Client
+    participant C as Cliente
     participant M as Middleware
     participant AK as ApiKeyAuthenticator
     participant AV as ApiKeyVerifier
     participant CR as ClientRepository
 
-    C->>M: Request with X-Client-Id + X-Api-Key
+    C->>M: Petición con X-Client-Id + X-Api-Key
     M->>AK: authenticate(request, context)
-    AK->>AK: Extract headers
+    AK->>AK: Extraer headers
     AK->>AV: verify(clientId, apiKey, context)
 
     AV->>CR: findByAppCode(clientId, keyPrefix)
     CR-->>AV: ClientInfo
 
-    AV->>AV: Verify key hash (Argon2id)
-    AV->>AV: Check is_active
-    AV->>AV: Check is_revoked
-    AV->>AV: Check expires_at
-    AV->>AV: Validate IP allowlist
-    AV-->>AK: Verified ClientInfo
+    AV->>AV: Verificar hash de key (Argon2id)
+    AV->>AV: Verificar is_active
+    AV->>AV: Verificar is_revoked
+    AV->>AV: Verificar expires_at
+    AV->>AV: Validar lista de IPs permitidas
+    AV-->>AK: ClientInfo verificado
 
     AK->>CR: trackUsage(clientId, ip)
-    AK->>AK: Create enriched AppContext
-    AK-->>M: AppContext with client + capabilities
+    AK->>AK: Crear AppContext enriquecido
+    AK-->>M: AppContext con cliente + capabilities
 ```
 
-For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
+Para documentación detallada de arquitectura, ver [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
-## Configuration Reference
+## Referencia de Configuración
 
-The configuration file `config/app-context.php` contains all settings. Here are the key sections:
+El archivo de configuración `config/app-context.php` contiene todas las opciones. Aquí están las secciones clave:
 
-### Client Repository
+### Repositorio de Clientes
 
 ```php
 'client_repository' => [
-    // Driver: 'config', 'eloquent', or custom class
+    // Driver: 'config', 'eloquent', o clase personalizada
     'driver' => env('APP_CONTEXT_CLIENT_DRIVER', 'config'),
 
-    // Config driver settings (no database)
+    // Configuración del driver config (sin base de datos)
     'config' => [
         'hash_algorithm' => 'bcrypt',
         'clients' => [
@@ -608,7 +608,7 @@ The configuration file `config/app-context.php` contains all settings. Here are 
         ],
     ],
 
-    // Eloquent driver settings (database)
+    // Configuración del driver eloquent (base de datos)
     'eloquent' => [
         'apps_table' => 'api_apps',
         'app_keys_table' => 'api_app_keys',
@@ -618,7 +618,7 @@ The configuration file `config/app-context.php` contains all settings. Here are 
 ],
 ```
 
-### Channels
+### Canales
 
 ```php
 'channels' => [
@@ -661,7 +661,7 @@ The configuration file `config/app-context.php` contains all settings. Here are 
 ],
 ```
 
-### JWT Settings
+### Configuración JWT
 
 ```php
 'jwt' => [
@@ -719,7 +719,7 @@ The configuration file `config/app-context.php` contains all settings. Here are 
 ],
 ```
 
-### Security Settings
+### Configuración de Seguridad
 
 ```php
 'security' => [
@@ -734,7 +734,7 @@ The configuration file `config/app-context.php` contains all settings. Here are 
 ],
 ```
 
-### Audit Settings
+### Configuración de Auditoría
 
 ```php
 'audit' => [
@@ -753,15 +753,15 @@ The configuration file `config/app-context.php` contains all settings. Here are 
 ],
 ```
 
-### Environment Variables
+### Variables de Entorno
 
 ```env
 # Core
-APP_CONTEXT_DOMAIN=myapp.com
+APP_CONTEXT_DOMAIN=miapp.com
 APP_CONTEXT_DETECTION=auto
 APP_CONTEXT_DENY_BY_DEFAULT=true
 
-# Client Repository
+# Repositorio de Clientes
 APP_CONTEXT_CLIENT_DRIVER=config
 APP_CONTEXT_CLIENTS_TABLE=api_clients
 APP_CONTEXT_APPS_TABLE=api_apps
@@ -771,7 +771,7 @@ APP_CONTEXT_APP_KEYS_TABLE=api_app_keys
 JWT_ALGO=RS256
 JWT_PUBLIC_KEY_PATH=storage/jwt/public.pem
 JWT_PRIVATE_KEY_PATH=storage/jwt/private.pem
-JWT_ISSUER=https://myapp.com
+JWT_ISSUER=https://miapp.com
 JWT_TTL=3600
 JWT_BLACKLIST_ENABLED=true
 JWT_DEV_FALLBACK=false
@@ -784,29 +784,29 @@ APP_CONTEXT_IP_ALLOWLIST=false
 
 ---
 
-## Middleware Pipeline
+## Pipeline de Middleware
 
-The package provides granular middleware that can be composed for different scenarios:
+El paquete proporciona middleware granular que puede componerse para diferentes escenarios:
 
-### Available Middleware
+### Middleware Disponible
 
-| Alias | Class | Purpose |
-|-------|-------|---------|
-| `app.context` | `ResolveAppContext` | Detect channel and create base context |
-| `app.throttle` | `RateLimitByContext` | Context-aware rate limiting |
-| `app.auth` | `AuthenticateChannel` | Authenticate based on channel mode |
-| `app.binding` | `EnforceContextBinding` | Validate audience and tenant binding |
-| `app.requires` | `RequireAbility` | Check scopes/capabilities (OR logic) |
-| `app.requires.all` | `RequireAllAbilities` | Check scopes/capabilities (AND logic) |
-| `app.scope` | `RequireScope` | Legacy scope checking |
-| `app.audit` | `InjectAuditContext` | Inject context into logs |
+| Alias | Clase | Propósito |
+|-------|-------|-----------|
+| `app.context` | `ResolveAppContext` | Detectar canal y crear contexto base |
+| `app.throttle` | `RateLimitByContext` | Rate limiting por contexto |
+| `app.auth` | `AuthenticateChannel` | Autenticar según modo del canal |
+| `app.binding` | `EnforceContextBinding` | Validar binding de audiencia y tenant |
+| `app.requires` | `RequireAbility` | Verificar scopes/capabilities (lógica OR) |
+| `app.requires.all` | `RequireAllAbilities` | Verificar scopes/capabilities (lógica AND) |
+| `app.scope` | `RequireScope` | Verificación de scopes legacy |
+| `app.audit` | `InjectAuditContext` | Inyectar contexto en logs |
 
-### Middleware Group
+### Grupo de Middleware
 
-The `app-context` group includes all middleware in the recommended order:
+El grupo `app-context` incluye todo el middleware en el orden recomendado:
 
 ```php
-// Equivalent to:
+// Equivalente a:
 Route::middleware([
     'app.context',
     'app.throttle',
@@ -814,24 +814,24 @@ Route::middleware([
     'app.binding',
     'app.audit',
 ])->group(function () {
-    // Routes
+    // Rutas
 });
 ```
 
-### Recommended Order
+### Orden Recomendado
 
 ```
-1. app.context      - Must be first (resolves channel)
-2. app.throttle     - Rate limit before expensive operations
-3. app.auth         - Authenticate the request
-4. app.binding      - Validate audience/tenant binding
-5. app.requires     - Check permissions (per-route)
-6. app.audit        - Last (includes all context)
+1. app.context      - Debe ser primero (resuelve canal)
+2. app.throttle     - Rate limit antes de operaciones costosas
+3. app.auth         - Autenticar la petición
+4. app.binding      - Validar binding de audiencia/tenant
+5. app.requires     - Verificar permisos (por ruta)
+6. app.audit        - Último (incluye todo el contexto)
 ```
 
-### Usage Examples
+### Ejemplos de Uso
 
-**Standard Protected Routes:**
+**Rutas Protegidas Estándar:**
 
 ```php
 Route::middleware(['app-context'])->group(function () {
@@ -840,7 +840,7 @@ Route::middleware(['app-context'])->group(function () {
 });
 ```
 
-**Login Routes (no auth):**
+**Rutas de Login (sin auth):**
 
 ```php
 Route::middleware([
@@ -851,39 +851,39 @@ Route::middleware([
 ])->post('/login', [AuthController::class, 'login']);
 ```
 
-**Multiple Required Scopes (OR):**
+**Múltiples Scopes Requeridos (OR):**
 
 ```php
 Route::middleware(['app.requires:admin:users:read,admin:users:write'])
     ->get('/users', [UserController::class, 'index']);
-// Passes if user has EITHER scope
+// Pasa si el usuario tiene CUALQUIERA de los scopes
 ```
 
-**Multiple Required Scopes (AND):**
+**Múltiples Scopes Requeridos (AND):**
 
 ```php
 Route::middleware(['app.requires.all:admin:users:read,admin:users:write'])
     ->put('/users/{id}', [UserController::class, 'update']);
-// Passes only if user has BOTH scopes
+// Pasa solo si el usuario tiene AMBOS scopes
 ```
 
 ---
 
-## Authentication Flows
+## Flujos de Autenticación
 
-### JWT Authentication (User Login)
+### Autenticación JWT (Login de Usuario)
 
-**Route Configuration:**
+**Configuración de Rutas:**
 
 ```php
-// Login route (without app.auth)
+// Ruta de login (sin app.auth)
 Route::middleware([
     'app.context',
     'app.throttle',
     'app.binding',
 ])->post('/api/login', [AuthController::class, 'login']);
 
-// Protected routes (with app.auth)
+// Rutas protegidas (con app.auth)
 Route::middleware(['app-context'])->group(function () {
     Route::get('/api/me', [AuthController::class, 'me']);
     Route::post('/api/logout', [AuthController::class, 'logout']);
@@ -891,7 +891,7 @@ Route::middleware(['app-context'])->group(function () {
 });
 ```
 
-**AuthController Implementation:**
+**Implementación de AuthController:**
 
 ```php
 <?php
@@ -907,7 +907,7 @@ use Ronu\AppContext\Context\AppContext;
 class AuthController extends Controller
 {
     /**
-     * Login and issue JWT with context claims.
+     * Login y emisión de JWT con claims de contexto.
      */
     public function login(Request $request, AppContext $context): JsonResponse
     {
@@ -919,18 +919,18 @@ class AuthController extends Controller
         if (!Auth::attempt($credentials)) {
             return response()->json([
                 'error' => 'AUTHENTICATION_FAILED',
-                'message' => 'Invalid credentials',
+                'message' => 'Credenciales inválidas',
             ], 401);
         }
 
         $user = Auth::user();
 
-        // Build claims with context binding
+        // Construir claims con binding de contexto
         $claims = [
-            'aud' => $context->getAppId(),  // Channel binding
-            'tid' => $this->extractTenantId($request),  // Tenant binding
+            'aud' => $context->getAppId(),  // Binding de canal
+            'tid' => $this->extractTenantId($request),  // Binding de tenant
             'scp' => $this->getUserScopes($user, $context),
-            'did' => $request->header('X-Device-Id'),  // Device binding (mobile)
+            'did' => $request->header('X-Device-Id'),  // Binding de dispositivo (móvil)
         ];
 
         $token = JWTAuth::claims($claims)->fromUser($user);
@@ -945,17 +945,17 @@ class AuthController extends Controller
     }
 
     /**
-     * Logout and invalidate token.
+     * Logout e invalidación de token.
      */
     public function logout(): JsonResponse
     {
         JWTAuth::invalidate(JWTAuth::getToken());
 
-        return response()->json(['message' => 'Logged out successfully']);
+        return response()->json(['message' => 'Sesión cerrada exitosamente']);
     }
 
     /**
-     * Refresh token preserving claims.
+     * Refrescar token preservando claims.
      */
     public function refresh(): JsonResponse
     {
@@ -969,7 +969,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Get current user info.
+     * Obtener información del usuario actual.
      */
     public function me(AppContext $context): JsonResponse
     {
@@ -990,7 +990,7 @@ class AuthController extends Controller
 
     private function getUserScopes($user, AppContext $context): array
     {
-        // Get user permissions and filter by channel's allowed scopes
+        // Obtener permisos del usuario y filtrar por scopes permitidos del canal
         $userPermissions = method_exists($user, 'getPermissions')
             ? $user->getPermissions()
             : [];
@@ -1002,19 +1002,19 @@ class AuthController extends Controller
 }
 ```
 
-### API Key Authentication (Machine-to-Machine)
+### Autenticación API Key (Máquina a Máquina)
 
-API Key authentication has no login step. Each request includes credentials:
+La autenticación API Key no tiene paso de login. Cada petición incluye credenciales:
 
-**Client Request:**
+**Petición del Cliente:**
 
 ```bash
-curl -X GET "https://api-partners.myapp.com/partner/inventory" \
+curl -X GET "https://api-partners.miapp.com/partner/inventory" \
   -H "X-Client-Id: acme-corp" \
   -H "X-Api-Key: aBcDeFgHiJ.1234567890abcdefghijklmnopqrstuvwxyz"
 ```
 
-**Route Configuration:**
+**Configuración de Rutas:**
 
 ```php
 Route::middleware(['app-context'])->prefix('partner')->group(function () {
@@ -1026,7 +1026,7 @@ Route::middleware(['app-context'])->prefix('partner')->group(function () {
 });
 ```
 
-**Controller:**
+**Controlador:**
 
 ```php
 <?php
@@ -1039,7 +1039,7 @@ class PartnerController extends Controller
 {
     public function inventory(AppContext $context)
     {
-        // Context contains client info
+        // El contexto contiene info del cliente
         $clientId = $context->getClientId();
         $capabilities = $context->getCapabilities();
 
@@ -1051,54 +1051,54 @@ class PartnerController extends Controller
 }
 ```
 
-### Optional JWT (Public with Auth)
+### JWT Opcional (Público con Auth)
 
-For routes that work with or without authentication:
+Para rutas que funcionan con o sin autenticación:
 
-**Channel Configuration:**
+**Configuración del Canal:**
 
 ```php
 'site' => [
     'auth_mode' => 'jwt_or_anonymous',
     'allowed_scopes' => ['site:*', 'user:profile:*'],
     'public_scopes' => ['catalog:browse', 'public:read'],
-    'anonymous_on_invalid_token' => false,  // Reject invalid tokens
+    'anonymous_on_invalid_token' => false,  // Rechazar tokens inválidos
 ],
 ```
 
-**Controller:**
+**Controlador:**
 
 ```php
 public function catalog(AppContext $context)
 {
     if ($context->isAuthenticated()) {
-        // Personalized experience
+        // Experiencia personalizada
         return $this->personalizedCatalog($context->getUserId());
     }
 
-    // Anonymous browsing
+    // Navegación anónima
     return $this->publicCatalog();
 }
 ```
 
 ---
 
-## Client Repository
+## Repositorio de Clientes
 
-The library uses a repository pattern for API client storage, supporting multiple backends.
+La biblioteca usa un patrón repositorio para almacenamiento de clientes API, soportando múltiples backends.
 
-### Config Driver (No Database)
+### Driver Config (Sin Base de Datos)
 
-Best for: Simple setups, few partners, stateless deployments.
+Ideal para: Configuraciones simples, pocos partners, despliegues stateless.
 
-**Step 1: Generate Key Hash**
+**Paso 1: Generar Hash de Key**
 
 ```bash
-php artisan tinker --execute="echo Hash::make('your-secret-key');"
+php artisan tinker --execute="echo Hash::make('tu-key-secreta');"
 # Output: $2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi
 ```
 
-**Step 2: Configure Client**
+**Paso 2: Configurar Cliente**
 
 ```php
 'client_repository' => [
@@ -1121,11 +1121,11 @@ php artisan tinker --execute="echo Hash::make('your-secret-key');"
 ],
 ```
 
-### Eloquent Driver (Database)
+### Driver Eloquent (Base de Datos)
 
-Best for: Dynamic client management, many partners, usage tracking.
+Ideal para: Gestión dinámica de clientes, muchos partners, tracking de uso.
 
-**Step 1: Create Migrations**
+**Paso 1: Crear Migraciones**
 
 ```php
 // database/migrations/xxxx_create_api_apps_table.php
@@ -1149,7 +1149,7 @@ Schema::create('api_app_keys', function (Blueprint $table) {
     $table->string('label')->nullable();
     $table->string('key_prefix', 20)->index();
     $table->string('key_hash');
-    $table->text('key_ciphertext')->nullable();  // Encrypted key (optional)
+    $table->text('key_ciphertext')->nullable();  // Key encriptada (opcional)
     $table->json('scopes')->nullable();
     $table->json('config')->nullable();  // capabilities, ip_allowlist
     $table->timestamp('expires_at')->nullable();
@@ -1163,7 +1163,7 @@ Schema::create('api_app_keys', function (Blueprint $table) {
 });
 ```
 
-**Step 2: Configure Driver**
+**Paso 2: Configurar Driver**
 
 ```php
 'client_repository' => [
@@ -1177,9 +1177,9 @@ Schema::create('api_app_keys', function (Blueprint $table) {
 ],
 ```
 
-### Custom Repository
+### Repositorio Personalizado
 
-Implement `ClientRepositoryInterface` for custom backends:
+Implementa `ClientRepositoryInterface` para backends personalizados:
 
 ```php
 <?php
@@ -1240,7 +1240,7 @@ class RedisClientRepository implements ClientRepositoryInterface
 }
 ```
 
-**Register Custom Repository:**
+**Registrar Repositorio Personalizado:**
 
 ```php
 'client_repository' => [
@@ -1255,47 +1255,47 @@ class RedisClientRepository implements ClientRepositoryInterface
 
 ## Rate Limiting
 
-Context-aware rate limiting with support for different strategies and endpoint-specific limits.
+Rate limiting por contexto con soporte para diferentes estrategias y límites específicos por endpoint.
 
-### Configuration
+### Configuración
 
 ```php
 'rate_limits' => [
     'mobile' => [
-        'global' => '60/m',              // 60 requests per minute
-        'authenticated_global' => '100/m', // Higher for authenticated
-        'by' => 'user_device',           // Rate limit key strategy
-        'burst' => '10/s',               // Short-term burst limit
+        'global' => '60/m',              // 60 peticiones por minuto
+        'authenticated_global' => '100/m', // Mayor para autenticados
+        'by' => 'user_device',           // Estrategia de clave de rate limit
+        'burst' => '10/s',               // Límite de ráfaga a corto plazo
         'endpoints' => [
             'POST:/mobile/orders' => '10/m',
             'POST:/mobile/checkout' => '5/m',
-            'GET:/mobile/*/export' => '2/h',  // Wildcard
+            'GET:/mobile/*/export' => '2/h',  // Comodín
         ],
     ],
 ],
 ```
 
-### Rate Limit Strategies
+### Estrategias de Rate Limit
 
-| Strategy | Key | Use Case |
-|----------|-----|----------|
-| `user` | `rate:channel:user:123` | Per-user limit |
-| `client_id` | `rate:channel:client:acme` | Per-API client |
-| `ip` | `rate:channel:ip:192.168.1.1` | Per-IP address |
-| `user_device` | `rate:channel:user:123:device:abc` | Per-user-device |
-| `ip_or_user` | User if auth, IP if anonymous | Hybrid |
+| Estrategia | Clave | Caso de Uso |
+|------------|-------|-------------|
+| `user` | `rate:channel:user:123` | Límite por usuario |
+| `client_id` | `rate:channel:client:acme` | Por cliente API |
+| `ip` | `rate:channel:ip:192.168.1.1` | Por dirección IP |
+| `user_device` | `rate:channel:user:123:device:abc` | Por usuario-dispositivo |
+| `ip_or_user` | Usuario si auth, IP si anónimo | Híbrido |
 
-### Response Headers
+### Headers de Respuesta
 
 ```
 X-RateLimit-Limit: 60
 X-RateLimit-Remaining: 45
-Retry-After: 47  (when throttled)
+Retry-After: 47  (cuando se excede)
 ```
 
-### Preventing Double Throttling
+### Prevenir Doble Throttling
 
-If using `app.throttle`, disable Laravel's default `throttle:api` middleware:
+Si usas `app.throttle`, deshabilita el middleware `throttle:api` por defecto de Laravel:
 
 ```php
 // bootstrap/app.php
@@ -1308,84 +1308,84 @@ If using `app.throttle`, disable Laravel's default `throttle:api` middleware:
 
 ---
 
-## Security Features
+## Características de Seguridad
 
-For comprehensive security documentation, see [SECURITY.md](SECURITY.md).
+Para documentación completa de seguridad, ver [SECURITY.md](SECURITY.md).
 
-### Algorithm Confusion Prevention
+### Prevención de Confusión de Algoritmo
 
-The JWT verifier rejects the `none` algorithm (CVE-2015-9235):
+El verificador JWT rechaza el algoritmo `none` (CVE-2015-9235):
 
 ```php
 'jwt' => [
     'allowed_algorithms' => ['HS256', 'RS256', 'RS384', 'RS512'],
-    // NEVER include 'none'
+    // NUNCA incluir 'none'
 ],
 ```
 
-### Audience Binding
+### Binding de Audiencia
 
-Tokens are locked to their intended channel:
-
-```php
-// Token with aud: "mobile"
-// Request to /api/* (admin channel)
-// Result: ContextBindingException
-```
-
-### Tenant Binding
-
-Multi-tenant isolation prevents cross-tenant access:
+Los tokens están bloqueados a su canal objetivo:
 
 ```php
-// Token with tid: "tenant_1"
-// Request to /api/tenant_2/users
-// Result: ContextBindingException
+// Token con aud: "mobile"
+// Petición a /api/* (canal admin)
+// Resultado: ContextBindingException
 ```
 
-### IP Allowlists
+### Binding de Tenant
 
-API keys can be restricted to specific IPs:
+El aislamiento multi-tenant previene acceso cross-tenant:
+
+```php
+// Token con tid: "tenant_1"
+// Petición a /api/tenant_2/users
+// Resultado: ContextBindingException
+```
+
+### Listas de IPs Permitidas
+
+Las API keys pueden restringirse a IPs específicas:
 
 ```php
 'ip_allowlist' => [
-    '203.0.113.0/24',    // CIDR notation
-    '198.51.100.42',     // Single IP
+    '203.0.113.0/24',    // Notación CIDR
+    '198.51.100.42',     // IP única
     '2001:db8::/32',     // IPv6
 ],
 ```
 
-### Security Checklist
+### Checklist de Seguridad
 
-- [ ] `deny_by_default = true` in production
-- [ ] JWT using RS256 with unique keys per environment
-- [ ] `verify_aud = true` for JWT audience validation
-- [ ] Tokens include `aud` (channel) and `tid` (tenant) claims
-- [ ] API keys hashed with Argon2id
-- [ ] IP allowlists for critical partners
-- [ ] Audit logging enabled
-- [ ] Rate limits configured per channel
-- [ ] Token blacklist enabled with Redis
-- [ ] Tenant binding enforced
+- [ ] `deny_by_default = true` en producción
+- [ ] JWT usando RS256 con claves únicas por entorno
+- [ ] `verify_aud = true` para validación de audiencia JWT
+- [ ] Tokens incluyen claims `aud` (canal) y `tid` (tenant)
+- [ ] API keys hasheadas con Argon2id
+- [ ] Listas de IPs permitidas para partners críticos
+- [ ] Logging de auditoría habilitado
+- [ ] Rate limits configurados por canal
+- [ ] Blacklist de tokens habilitada con Redis
+- [ ] Binding de tenant enforced
 
 ---
 
-## Artisan Commands
+## Comandos Artisan
 
-### List Routes by Channel
+### Listar Rutas por Canal
 
 ```bash
-# List all routes for a channel
+# Listar todas las rutas de un canal
 php artisan route:channel admin
 
-# Show orphan routes (not matching any channel)
+# Mostrar rutas huérfanas (que no coinciden con ningún canal)
 php artisan route:channel orphans
 
-# Output as JSON
+# Output como JSON
 php artisan route:channel mobile --json
 ```
 
-### Generate API Key (planned)
+### Generar API Key (planificado)
 
 ```bash
 php artisan app-context:generate-key "Partner Company" \
@@ -1397,7 +1397,7 @@ php artisan app-context:generate-key "Partner Company" \
     --expires=2025-12-31
 ```
 
-### List Clients (planned)
+### Listar Clientes (planificado)
 
 ```bash
 php artisan app-context:list-clients
@@ -1405,7 +1405,7 @@ php artisan app-context:list-clients --channel=partner
 php artisan app-context:list-clients --include-revoked
 ```
 
-### Revoke Key (planned)
+### Revocar Key (planificado)
 
 ```bash
 php artisan app-context:revoke-key acme-corp
@@ -1416,7 +1416,7 @@ php artisan app-context:revoke-key acme-corp --force
 
 ## Testing
 
-### Unit Tests
+### Tests Unitarios
 
 ```php
 <?php
@@ -1449,7 +1449,7 @@ class AppContextTest extends TestCase
 }
 ```
 
-### Feature Tests
+### Tests de Feature
 
 ```php
 <?php
@@ -1479,11 +1479,11 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
         $token = JWTAuth::claims([
-            'aud' => 'mobile',  // Wrong audience
+            'aud' => 'mobile',  // Audiencia incorrecta
         ])->fromUser($user);
 
         $response = $this->withHeader('Authorization', "Bearer {$token}")
-            ->getJson('/api/users');  // Admin channel
+            ->getJson('/api/users');  // Canal admin
 
         $response->assertStatus(403)
             ->assertJson(['error' => 'CONTEXT_BINDING_FAILED']);
@@ -1491,7 +1491,7 @@ class AuthenticationTest extends TestCase
 
     public function test_api_key_authentication_works(): void
     {
-        // Assuming config driver with test client
+        // Asumiendo driver config con cliente de prueba
         $response = $this->withHeaders([
             'X-Client-Id' => 'test-client',
             'X-Api-Key' => 'test-secret-key',
@@ -1502,41 +1502,41 @@ class AuthenticationTest extends TestCase
 }
 ```
 
-### Running Tests
+### Ejecutar Tests
 
 ```bash
-# Run all tests
+# Ejecutar todos los tests
 composer test
 
-# Run specific test file
+# Ejecutar archivo de test específico
 ./vendor/bin/phpunit tests/Unit/AppContextTest.php
 
-# Run with coverage
+# Ejecutar con coverage
 composer test-coverage
 ```
 
 ---
 
-## Troubleshooting
+## Solución de Problemas
 
-### Common Issues
+### Problemas Comunes
 
 **"AppContext not resolved"**
 
-Cause: The `app.context` middleware is not in the pipeline or not first.
+Causa: El middleware `app.context` no está en el pipeline o no es primero.
 
-Solution:
+Solución:
 ```php
 Route::middleware(['app.context', ...])->group(function () {
-    // Routes
+    // Rutas
 });
 ```
 
 **"JWT audience mismatch"**
 
-Cause: Token's `aud` claim doesn't match the channel.
+Causa: El claim `aud` del token no coincide con el canal.
 
-Solution: Ensure login issues tokens with correct audience:
+Solución: Asegurar que el login emita tokens con la audiencia correcta:
 ```php
 $claims = ['aud' => $context->getAppId()];
 $token = JWTAuth::claims($claims)->fromUser($user);
@@ -1544,103 +1544,103 @@ $token = JWTAuth::claims($claims)->fromUser($user);
 
 **"Tenant mismatch"**
 
-Cause: Token's `tid` claim doesn't match request tenant.
+Causa: El claim `tid` del token no coincide con el tenant de la petición.
 
-Solution: Verify tenant is correctly passed:
+Solución: Verificar que el tenant se pasa correctamente:
 ```php
-// In JWT
+// En JWT
 $claims = ['tid' => $tenantId];
 
-// In request (one of):
-// - Route: /api/tenant_123/users
+// En petición (uno de):
+// - Ruta: /api/tenant_123/users
 // - Header: X-Tenant-Id: tenant_123
 // - Query: ?tenant_id=tenant_123
 ```
 
 **"API key not accepted"**
 
-Cause: Invalid credentials or inactive client.
+Causa: Credenciales inválidas o cliente inactivo.
 
-Solution:
-1. Verify `X-Client-Id` matches configured `app_code`
-2. Verify `X-Api-Key` matches the key used to generate the hash
-3. Check `is_active` is `true`
-4. Check `is_revoked` is `false`
-5. Check `expires_at` hasn't passed
+Solución:
+1. Verificar que `X-Client-Id` coincide con el `app_code` configurado
+2. Verificar que `X-Api-Key` coincide con la key usada para generar el hash
+3. Verificar que `is_active` es `true`
+4. Verificar que `is_revoked` es `false`
+5. Verificar que `expires_at` no ha pasado
 
 **"Too many requests"**
 
-Cause: Rate limit exceeded.
+Causa: Rate limit excedido.
 
-Solution:
-1. Check rate limit configuration for the channel
-2. Verify `by` strategy is appropriate
-3. Check for double throttling (Laravel + app-context)
+Solución:
+1. Verificar configuración de rate limit para el canal
+2. Verificar que la estrategia `by` es apropiada
+3. Verificar doble throttling (Laravel + app-context)
 
 ### Debugging
 
-**Inspect AppContext:**
+**Inspeccionar AppContext:**
 
 ```php
-// In controller
+// En controlador
 Log::debug('Context', $context->toArray());
 
-// Output all context properties
+// Imprimir todas las propiedades del contexto
 dd($context->toArray());
 ```
 
-**Check resolved channel:**
+**Verificar canal resuelto:**
 
 ```php
 $context = AppContext::current();
-Log::info("Channel: {$context->getAppId()}, Auth: {$context->getAuthMode()}");
+Log::info("Canal: {$context->getAppId()}, Auth: {$context->getAuthMode()}");
 ```
 
 ---
 
-## FAQ
+## Preguntas Frecuentes
 
-**Q: Can I use this with Laravel Sanctum/Passport?**
+**P: ¿Puedo usar esto con Laravel Sanctum/Passport?**
 
-A: Laravel App Context is designed as a standalone authentication system. Using it alongside Sanctum/Passport may cause conflicts. Choose one based on your needs.
+R: Laravel App Context está diseñado como un sistema de autenticación independiente. Usarlo junto con Sanctum/Passport puede causar conflictos. Elige uno según tus necesidades.
 
-**Q: How do I add custom claims to JWT?**
+**P: ¿Cómo agrego claims personalizados al JWT?**
 
-A: Add them in your login controller:
+R: Agrégalos en tu controlador de login:
 ```php
 $claims = [
     'aud' => $context->getAppId(),
-    'custom_claim' => 'value',
+    'custom_claim' => 'valor',
 ];
 $token = JWTAuth::claims($claims)->fromUser($user);
 ```
 
-**Q: Can I have multiple authentication modes per channel?**
+**P: ¿Puedo tener múltiples modos de autenticación por canal?**
 
-A: Not directly. Use `jwt_or_anonymous` for optional auth, or create separate channels for different auth modes.
+R: No directamente. Usa `jwt_or_anonymous` para auth opcional, o crea canales separados para diferentes modos de auth.
 
-**Q: How do I implement role-based access?**
+**P: ¿Cómo implemento acceso basado en roles?**
 
-A: Use scopes to represent roles:
+R: Usa scopes para representar roles:
 ```php
-// JWT claims
+// Claims JWT
 $claims = ['scp' => ['role:admin', 'admin:*']];
 
 // Middleware
 Route::middleware(['app.requires:role:admin'])->group(/* ... */);
 ```
 
-**Q: How do I rotate API keys?**
+**P: ¿Cómo roto API keys?**
 
-A: With Eloquent driver:
-1. Generate new key with `repository->generateKey()`
-2. Create new key record with different prefix
-3. Notify client of new key
-4. Revoke old key after transition period
+R: Con driver Eloquent:
+1. Generar nueva key con `repository->generateKey()`
+2. Crear nuevo registro de key con diferente prefix
+3. Notificar al cliente la nueva key
+4. Revocar la key antigua después del período de transición
 
-**Q: Can I disable authentication for specific routes?**
+**P: ¿Puedo deshabilitar autenticación para rutas específicas?**
 
-A: Use public routes configuration:
+R: Usa configuración de rutas públicas:
 ```php
 'public_routes' => [
     'names' => ['health.check'],
@@ -1648,20 +1648,20 @@ A: Use public routes configuration:
 ],
 ```
 
-**Q: How do I handle token refresh?**
+**P: ¿Cómo manejo el refresh de tokens?**
 
-A: Use `JWTAuth::refresh()` which preserves custom claims:
+R: Usa `JWTAuth::refresh()` que preserva los claims personalizados:
 ```php
 $newToken = JWTAuth::refresh(JWTAuth::getToken());
 ```
 
-**Q: What happens when a token is blacklisted?**
+**P: ¿Qué pasa cuando un token está en blacklist?**
 
-A: The `JwtVerifier` checks the blacklist cache. Blacklisted tokens receive `AuthenticationException`.
+R: El `JwtVerifier` verifica el cache de blacklist. Los tokens en blacklist reciben `AuthenticationException`.
 
-**Q: How do I test with API keys locally?**
+**P: ¿Cómo pruebo con API keys localmente?**
 
-A: Use the config driver with test clients:
+R: Usa el driver config con clientes de prueba:
 ```php
 'clients' => [
     'test-client' => [
@@ -1671,9 +1671,9 @@ A: Use the config driver with test clients:
 ],
 ```
 
-**Q: Can I use different databases for clients?**
+**P: ¿Puedo usar diferentes bases de datos para clientes?**
 
-A: Yes, configure the connection:
+R: Sí, configura la conexión:
 ```php
 'eloquent' => [
     'connection' => 'mysql_readonly',
@@ -1682,36 +1682,36 @@ A: Yes, configure the connection:
 
 ---
 
-## Glossary
+## Glosario
 
-| Term | Definition |
-|------|------------|
-| **AppContext** | Immutable value object containing all request authentication/authorization state |
-| **Channel** | Named configuration for a client type (mobile, admin, partner, site) |
-| **Scope** | JWT-based permission string (e.g., `admin:users:read`) |
-| **Capability** | API Key-based permission string (e.g., `partner:orders:*`) |
-| **Ability** | Unified term for scope or capability |
-| **Tenant** | Isolated data partition in multi-tenant applications |
-| **Audience** | JWT `aud` claim identifying the intended recipient (channel) |
-| **Client** | API Key holder (typically an organization or integration) |
-| **Repository** | Storage backend for API client data |
-| **Authenticator** | Component that verifies credentials and enriches AppContext |
-| **Verifier** | Component that validates JWT signatures or API key hashes |
-| **Binding** | Validation that token claims match request context |
-
----
-
-## License
-
-The MIT License (MIT). Please see [License File](LICENSE) for more information.
+| Término | Definición |
+|---------|------------|
+| **AppContext** | Objeto de valor inmutable que contiene todo el estado de autenticación/autorización de la petición |
+| **Canal** | Configuración nombrada para un tipo de cliente (mobile, admin, partner, site) |
+| **Scope** | Cadena de permiso basada en JWT (ej. `admin:users:read`) |
+| **Capability** | Cadena de permiso basada en API Key (ej. `partner:orders:*`) |
+| **Ability** | Término unificado para scope o capability |
+| **Tenant** | Partición de datos aislada en aplicaciones multi-tenant |
+| **Audiencia** | Claim `aud` de JWT que identifica el destinatario objetivo (canal) |
+| **Cliente** | Poseedor de API Key (típicamente una organización o integración) |
+| **Repositorio** | Backend de almacenamiento para datos de clientes API |
+| **Authenticator** | Componente que verifica credenciales y enriquece AppContext |
+| **Verifier** | Componente que valida firmas JWT o hashes de API key |
+| **Binding** | Validación de que los claims del token coinciden con el contexto de la petición |
 
 ---
 
-## Contributing
+## Licencia
 
-Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
+La Licencia MIT (MIT). Por favor consulta el [Archivo de Licencia](../LICENSE) para más información.
 
-## Support
+---
+
+## Contribuir
+
+¡Las contribuciones son bienvenidas! Por favor lee nuestras guías de contribución antes de enviar pull requests.
+
+## Soporte
 
 - **Issues**: [GitHub Issues](https://github.com/charlietyn/laravel-app-context/issues)
-- **Documentation**: [ARCHITECTURE.md](ARCHITECTURE.md) | [SECURITY.md](SECURITY.md) | [EXAMPLES.md](EXAMPLES.md)
+- **Documentación**: [ARCHITECTURE.md](ARCHITECTURE.md) | [SECURITY.md](SECURITY.md) | [EXAMPLES.md](EXAMPLES.md)
