@@ -572,6 +572,146 @@ Just make sure your channel has the correct path prefix:
 ],
 ```
 
+#### Scenario 5: Same code deployed to multiple domains - one works and another doesn't
+
+**Problem:** You have the same code deployed to two different domains. One works perfectly and the other gives "Authentication required" or "Request does not match any configured channel" error.
+
+**Real example:**
+- ✅ `https://api.example.com/site/catalog/products` → **Works**
+- ❌ `https://tenant.otherdomain.org/site/catalog/products` → **Error: "Authentication required"**
+
+**Why does this happen?**
+
+The different behavior occurs because **each domain may have a different detection strategy** according to `auto_detection_rules`.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    SAME CODE, DIFFERENT RESULTS                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  api.example.com/site/products            tenant.otherdomain.org/site/products│
+│           │                                          │                       │
+│           ▼                                          ▼                       │
+│  Is there a rule for *.example.com?       Is there a rule for *.otherdomain.org?│
+│           │                                          │                       │
+│      YES: 'path'                               NO (uses default)            │
+│           │                                          │                       │
+│           ▼                                          ▼                       │
+│  Detects by PATH: /site                   Detects by SUBDOMAIN: tenant      │
+│           │                                          │                       │
+│           ▼                                          ▼                       │
+│  Channel: 'site' ✅                        Channel with 'tenant'?            │
+│  allow_anonymous: true                              │                        │
+│           │                                    NOT found                     │
+│           ▼                                          │                       │
+│      WORKS ✅                                        ▼                       │
+│                                              Channel: null or incorrect     │
+│                                              allow_anonymous: false          │
+│                                                      │                       │
+│                                                      ▼                       │
+│                                          ERROR: Authentication required ❌   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Step-by-step diagnosis:**
+
+1. **Check the auto-detection rules** in your `config/app-context.php`:
+   ```php
+   'auto_detection_rules' => [
+       '*.example.com' => 'path',      // ✅ Has rule → uses path
+       // *.otherdomain.org has NO rule → uses subdomain by default
+   ],
+   ```
+
+2. **When there's no rule**, the system uses `subdomain` by default in production
+3. **With `subdomain` strategy**, it searches for channel by subdomain (`tenant`)
+4. **If the subdomain isn't in any channel**, it fails or resolves to wrong channel
+
+**Solution 1: Add rule for the failing domain**
+
+```php
+// config/app-context.php
+'auto_detection_rules' => [
+    'localhost' => 'path',
+    '127.0.0.1' => 'path',
+    '*.localhost' => 'subdomain',
+    '*.ngrok.io' => 'path',
+    '*.ngrok-free.app' => 'path',
+    '*.test' => 'path',
+    '*.local' => 'path',
+
+    // ✅ ADD RULES FOR YOUR PRODUCTION DOMAINS
+    '*.example.com' => 'path',        // Already working
+    '*.otherdomain.org' => 'path',    // ← ADD THIS LINE
+],
+```
+
+**Solution 2: Use global `path` strategy**
+
+If all your domains should use path detection:
+
+```env
+# .env
+APP_CONTEXT_DETECTION=path
+```
+
+**Solution 3: Add all possible subdomains to the channel**
+
+If you prefer to keep the `subdomain` strategy:
+
+```php
+// config/app-context.php
+'channels' => [
+    'site' => [
+        'subdomains' => [
+            'www',
+            'api',        // For api.example.com
+            'tenant',     // For tenant.otherdomain.org
+            'store',      // Other subdomains you use
+            null,         // Root domain
+        ],
+        'path_prefixes' => ['/site', '/shop'],
+        'auth_mode' => 'jwt_or_anonymous',
+        'features' => [
+            'allow_anonymous' => true,  // ✅ CRITICAL for access without JWT
+        ],
+    ],
+],
+```
+
+**Quick reference table:**
+
+| Configuration | api.example.com/site | tenant.otherdomain.org/site |
+|---------------|----------------------|------------------------------|
+| No rules | subdomain → looks for 'api' | subdomain → looks for 'tenant' |
+| `*.example.com => 'path'` | path → looks for '/site' ✅ | subdomain → looks for 'tenant' ❌ |
+| Both with 'path' rule | path → '/site' ✅ | path → '/site' ✅ |
+| `APP_CONTEXT_DETECTION=path` | path → '/site' ✅ | path → '/site' ✅ |
+
+**Recommendation for multi-domain:**
+
+If you deploy the same code to multiple domains with dynamic subdomains (multi-tenant), **always use `path` detection**:
+
+```php
+// config/app-context.php
+'auto_detection_rules' => [
+    // Development
+    'localhost' => 'path',
+    '127.0.0.1' => 'path',
+    '*.test' => 'path',
+    '*.local' => 'path',
+    '*.ngrok-free.app' => 'path',
+
+    // Production - ALL your domains
+    '*.example.com' => 'path',
+    '*.otherdomain.org' => 'path',
+    '*.youranotherdomain.com' => 'path',
+],
+```
+
+This ensures the channel is determined by the **URL path** (`/site`, `/api`, `/mobile`) and not by the subdomain, allowing any subdomain to work correctly.
+
 ### 9.6) Debugging Channel Resolution
 
 To diagnose issues, you can create a test endpoint:

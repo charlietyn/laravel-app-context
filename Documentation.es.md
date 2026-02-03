@@ -564,6 +564,146 @@ Solo asegúrate que tu canal tenga el path prefix correcto:
 ],
 ```
 
+#### Escenario 5: Mismo código desplegado en múltiples dominios - uno funciona y otro no
+
+**Problema:** Tienes el mismo código desplegado en dos dominios diferentes. En uno funciona perfectamente y en otro da error "Authentication required" o "Request does not match any configured channel".
+
+**Ejemplo real:**
+- ✅ `https://api.tumerkado.com/site/catalog/products` → **Funciona**
+- ❌ `https://tencent.airbites.org/site/catalog/products` → **Error: "Authentication required"**
+
+**¿Por qué ocurre esto?**
+
+El comportamiento diferente se debe a que **cada dominio puede tener una estrategia de detección diferente** según las reglas de `auto_detection_rules`.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    MISMO CÓDIGO, DIFERENTES RESULTADOS                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  api.tumerkado.com/site/products          tencent.airbites.org/site/products│
+│           │                                          │                       │
+│           ▼                                          ▼                       │
+│  ¿Hay regla para *.tumerkado.com?         ¿Hay regla para *.airbites.org?   │
+│           │                                          │                       │
+│      SÍ: 'path'                               NO (usa default)              │
+│           │                                          │                       │
+│           ▼                                          ▼                       │
+│  Detecta por PATH: /site                  Detecta por SUBDOMAIN: tencent    │
+│           │                                          │                       │
+│           ▼                                          ▼                       │
+│  Canal: 'site' ✅                          ¿Canal con 'tencent'?            │
+│  allow_anonymous: true                              │                        │
+│           │                                    NO encontrado                 │
+│           ▼                                          │                       │
+│      FUNCIONA ✅                                     ▼                       │
+│                                              Canal: null o incorrecto       │
+│                                              allow_anonymous: false          │
+│                                                      │                       │
+│                                                      ▼                       │
+│                                          ERROR: Authentication required ❌   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Diagnóstico paso a paso:**
+
+1. **Verifica las reglas de auto-detección** en tu `config/app-context.php`:
+   ```php
+   'auto_detection_rules' => [
+       '*.tumerkado.com' => 'path',    // ✅ Tiene regla → usa path
+       // *.airbites.org NO tiene regla → usa subdomain por defecto
+   ],
+   ```
+
+2. **Cuando no hay regla**, el sistema usa `subdomain` por defecto en producción
+3. **Con estrategia `subdomain`**, busca el canal por el subdominio (`tencent`)
+4. **Si el subdominio no está en ningún canal**, falla o resuelve a un canal incorrecto
+
+**Solución 1: Agregar regla para el dominio que falla**
+
+```php
+// config/app-context.php
+'auto_detection_rules' => [
+    'localhost' => 'path',
+    '127.0.0.1' => 'path',
+    '*.localhost' => 'subdomain',
+    '*.ngrok.io' => 'path',
+    '*.ngrok-free.app' => 'path',
+    '*.test' => 'path',
+    '*.local' => 'path',
+
+    // ✅ AGREGAR REGLAS PARA TUS DOMINIOS DE PRODUCCIÓN
+    '*.tumerkado.com' => 'path',     // Ya funcionaba
+    '*.airbites.org' => 'path',      // ← AGREGAR ESTA LÍNEA
+],
+```
+
+**Solución 2: Usar estrategia `path` global**
+
+Si todos tus dominios deben usar detección por path:
+
+```env
+# .env
+APP_CONTEXT_DETECTION=path
+```
+
+**Solución 3: Agregar todos los subdominios posibles al canal**
+
+Si prefieres mantener la estrategia `subdomain`:
+
+```php
+// config/app-context.php
+'channels' => [
+    'site' => [
+        'subdomains' => [
+            'www',
+            'api',        // Para api.tumerkado.com
+            'tencent',    // Para tencent.airbites.org
+            'store',      // Otros subdominios que uses
+            null,         // Dominio raíz
+        ],
+        'path_prefixes' => ['/site', '/shop'],
+        'auth_mode' => 'jwt_or_anonymous',
+        'features' => [
+            'allow_anonymous' => true,  // ✅ CRÍTICO para acceso sin JWT
+        ],
+    ],
+],
+```
+
+**Tabla de referencia rápida:**
+
+| Configuración | api.tumerkado.com/site | tencent.airbites.org/site |
+|---------------|------------------------|---------------------------|
+| Sin reglas | subdomain → busca 'api' | subdomain → busca 'tencent' |
+| `*.tumerkado.com => 'path'` | path → busca '/site' ✅ | subdomain → busca 'tencent' ❌ |
+| Ambos con regla 'path' | path → '/site' ✅ | path → '/site' ✅ |
+| `APP_CONTEXT_DETECTION=path` | path → '/site' ✅ | path → '/site' ✅ |
+
+**Recomendación para multi-dominio:**
+
+Si despliegas el mismo código en múltiples dominios con subdominios dinámicos (multi-tenant), **usa siempre detección por `path`**:
+
+```php
+// config/app-context.php
+'auto_detection_rules' => [
+    // Desarrollo
+    'localhost' => 'path',
+    '127.0.0.1' => 'path',
+    '*.test' => 'path',
+    '*.local' => 'path',
+    '*.ngrok-free.app' => 'path',
+
+    // Producción - TODOS tus dominios
+    '*.tumerkado.com' => 'path',
+    '*.airbites.org' => 'path',
+    '*.tuotrodominio.com' => 'path',
+],
+```
+
+Esto garantiza que el canal se determine por el **path de la URL** (`/site`, `/api`, `/mobile`) y no por el subdominio, permitiendo que cualquier subdominio funcione correctamente.
+
 ### 9.6) Debugging de Resolución de Canales
 
 Para diagnosticar problemas, puedes crear un endpoint de prueba:
