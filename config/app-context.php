@@ -383,7 +383,7 @@ return [
         'private_key_path' => env('JWT_PRIVATE_KEY_PATH', storage_path('keys/jwt-private.pem')),
 
         // Expected issuer (usually your app URL)
-        'issuer' => env('JWT_ISSUER', env('APP_URL', 'http://localhost')),
+        'issuer' =>env('APP_CONTEXT_DEV', 'local')!=='local'?env('JWT_ISSUER', env('APP_URL', 'http://localhost')):'http://localhost',
 
         // Token TTL in seconds
         'ttl' => env('JWT_TTL', 3600), // 1 hour
