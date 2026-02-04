@@ -1,0 +1,56 @@
+*** Begin Patch
+*** Update File: .env.example
+@@
+ # Reject requests that don't match any channel (recommended: true for production)
+ APP_CONTEXT_DENY_BY_DEFAULT=true
++
++# Base application URL (used as JWT_ISSUER fallback)
++APP_URL=http://localhost
+@@
+ # Current dev environment identifier (used with APP_CONTEXT_DEV)
+ APP_DEV=local
++
++#------------------------------------------------------------------------------
++# Client Repository Configuration
++#------------------------------------------------------------------------------
++
++# Driver: config, eloquent, or custom class
++APP_CONTEXT_CLIENT_DRIVER=config
++
++# Eloquent tables (only needed for eloquent driver)
++APP_CONTEXT_CLIENTS_TABLE=api_clients
++APP_CONTEXT_APPS_TABLE=api_apps
++APP_CONTEXT_APP_KEYS_TABLE=api_app_keys
++
++# Optional Eloquent models
++# APP_CONTEXT_APP_MODEL=App\Models\ApiApp
++# APP_CONTEXT_APP_KEY_MODEL=App\Models\ApiAppKey
++
++# Optional DB connection
++# APP_CONTEXT_CLIENTS_CONNECTION=
+@@
+-# Token TTL in minutes (60 = 1 hour)
+-JWT_TTL=60
+-
+-# Refresh token TTL in minutes (20160 = 14 days)
+-JWT_REFRESH_TTL=20160
++# Token TTL in seconds (3600 = 1 hour)
++JWT_TTL=3600
++
++# Refresh token TTL in seconds (1209600 = 14 days)
++JWT_REFRESH_TTL=1209600
+@@
+ # Verify audience claim in tokens
+ JWT_VERIFY_AUD=true
++
++# Token sources (comma-separated): header, query, cookie
++JWT_TOKEN_SOURCES=header,query,cookie
++
++# Development fallback when RSA keys are missing
++JWT_DEV_FALLBACK=false
++JWT_DEV_ALGO=HS256
++JWT_DEV_SECRET=base64:your-app-key
++
++# Ignore scheme when validating issuer (useful behind proxies)
++JWT_IGNORE_ISSUER_SCHEME=false
+*** End Patch

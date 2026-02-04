@@ -1,0 +1,16 @@
+*** Begin Patch
+*** Update File: config/app-context.php
+@@
+-        // Grace period for blacklist (handles race conditions)
+-        'blacklist_grace_period' => 30,
+@@
+-        // Strict algorithm checking (recommended: true)
+-        'strict_algorithm_check' => true,
+@@
+-        // Anomaly detection settings
+-        'anomaly_detection' => [
+-            'enabled' => env('APP_CONTEXT_ANOMALY_DETECTION', false),
+-            'max_ip_changes_per_hour' => 3,
+-            'max_device_changes_per_day' => 5,
+-        ],
+*** End Patch
