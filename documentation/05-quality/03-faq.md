@@ -21,6 +21,10 @@ Because optional-auth channels may resolve to anonymous context when no token is
 ## Should `JWT required` logic live in the package or each project?
 If this is a cross-project concern, keep it in the package (as `app.auth.required`). If it is one-off business logic, implement it in the consumer app. For most teams, package-level + route-level config is the best long-term reuse strategy.
 
+
+## Do I need to configure `app-context` guard if I already use `app.auth.required` (or `ctx.auth.required`)?
+No. In that setup, you are using package middleware directly and no Laravel guard is required. Guard configuration is only necessary if you use `auth:app-context`.
+
 ## What is the practical difference between `app.auth`, `app.binding`, and `app.auth.required`?
 - `app.auth`: resolves identity (JWT/API key/anonymous) according to channel auth mode.
 - `app.binding`: validates context binding constraints (audience, tenant), not login requirement.

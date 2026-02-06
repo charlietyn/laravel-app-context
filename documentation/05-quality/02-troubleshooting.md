@@ -51,9 +51,13 @@
 
 ## "Auth guard [app-context] is not defined"
 
+**Important first check**:
+- If you are using `app.auth.required` / `ctx.auth.required`, you can ignore this section (guard is not required).
+- This error only applies when you use Laravel middleware `auth:app-context`.
+
 **Cause**: Guard is not declared in `config/auth.php`.
 
-**Fix**:
+**Fix (only for `auth:app-context`)**:
 1. Add guard config:
    ```php
    'guards' => [

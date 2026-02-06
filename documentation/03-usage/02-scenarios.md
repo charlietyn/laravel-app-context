@@ -153,15 +153,23 @@ Route::middleware(['app-context'])->group(function () {
 
 ---
 
-## Scenario 6: Guard error when using `auth:app-context`
+## Scenario 6: Do I need `auth:app-context` guard?
 
-**Symptom**
-- `Auth guard [app-context] is not defined.`
+**Short answer**
+- If you use `app.auth.required` (or your alias like `ctx.auth.required`): **No guard needed**.
+- If you use Laravel middleware `auth:app-context`: **Guard config is required**.
 
-**Root cause**
-- Missing guard declaration in `config/auth.php`.
+**Recommended for juniors (simple setup)**
+Use only package middleware:
+- `app-context`
+- `app.auth.required:jwt` on private groups
+- `app.scope:*` for permissions
 
-**Fix**
+This avoids extra guard setup while keeping behavior explicit.
+
+**When guard is needed**
+Only when you intentionally want to use `auth:app-context`.
+Then add:
 ```php
 'guards' => [
     'app-context' => [
@@ -169,12 +177,6 @@ Route::middleware(['app-context'])->group(function () {
         'provider' => 'users',
     ],
 ],
-```
-
-Then clear/rebuild config cache:
-```bash
-php artisan optimize:clear
-php artisan config:cache
 ```
 
 ---
