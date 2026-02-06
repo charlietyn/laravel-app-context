@@ -52,9 +52,19 @@ Route::middleware(['app-context', 'app.requires:admin:reports:read'])->group(fun
 });
 ```
 
-## 4) Use the custom auth guard (optional)
+## 4) Require auth on selected routes (recommended for most apps)
 
-The package registers a guard named `app-context` that resolves users based on the context:
+If your app uses `jwt_or_anonymous` channels, the easiest pattern is:
+- Keep public routes under `app-context`
+- Add `app.auth.required:jwt` only to private routes
+
+> ✅ In this pattern, you do **not** need `auth:app-context` or guard configuration.
+
+## 5) Use the custom auth guard (advanced / optional)
+
+Only needed if you plan to use Laravel middleware like `auth:app-context`.
+
+The package registers a driver named `app-context`; if you use it, add this to your app:
 
 ```php
 // config/auth.php
@@ -64,6 +74,20 @@ The package registers a guard named `app-context` that resolves users based on t
         'provider' => 'users',
     ],
 ],
+```
+
+## 6) Require JWT only on selected routes (optional-auth channels)
+
+For channels using `jwt_or_anonymous`, you can keep most routes public and enforce authentication only on sensitive endpoints:
+
+```php
+Route::middleware(['app-context'])->group(function () {
+    Route::get('/site/products', fn () => ['ok' => true]); // public
+
+    Route::middleware(['app.auth.required:jwt', 'app.scope:users:write'])->group(function () {
+        Route::post('/site/checkout', fn () => ['ok' => true]);
+    });
+});
 ```
 
 ## Evidence

@@ -14,6 +14,18 @@
 
 **Fix**:
 - Provide a valid `Authorization: Bearer <token>` header (or configured token source).
+- If your channel is `jwt_or_anonymous`, add `app.auth.required:jwt` to force token on sensitive routes.
+
+## 403 "Missing Required Permission" when token is missing
+
+**Cause**:
+- Route uses `app.scope:*`.
+- Channel is `jwt_or_anonymous` and request became anonymous.
+- Authorization fails (403) before a strict auth requirement is declared.
+
+**Fix**:
+- Add `app.auth.required:jwt` before/alongside scope middleware on private routes.
+- Keep public routes under plain `app-context`.
 
 ## 401 "API key required"
 
@@ -21,6 +33,7 @@
 
 **Fix**:
 - Provide `X-Client-Id` and `X-Api-Key` headers (or custom header names).
+- For machine-only routes in mixed channels, use `app.auth.required:api_key`.
 
 ## 403 "Token audience mismatch"
 
@@ -35,6 +48,30 @@
 
 **Fix**:
 - Adjust `rate_limits` for the channel or endpoint.
+
+## "Auth guard [app-context] is not defined"
+
+**Important first check**:
+- If you are using `app.auth.required` / `ctx.auth.required`, you can ignore this section (guard is not required).
+- This error only applies when you use Laravel middleware `auth:app-context`.
+
+**Cause**: Guard is not declared in `config/auth.php`.
+
+**Fix (only for `auth:app-context`)**:
+1. Add guard config:
+   ```php
+   'guards' => [
+       'app-context' => [
+           'driver' => 'app-context',
+           'provider' => 'users',
+       ],
+   ],
+   ```
+2. Refresh config cache:
+   ```bash
+   php artisan optimize:clear
+   php artisan config:cache
+   ```
 
 ## JWT RSA keys missing in dev
 
