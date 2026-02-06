@@ -94,37 +94,92 @@ Route::middleware(['app-context', 'app.requires:partner:orders:read'])->group(fu
 
 ---
 
-## Scenario 4: Public site with optional auth
+## Scenario 4: Public ecommerce channel with optional auth + secure endpoints
 
 **Goal**
-- Allow anonymous access on public routes while accepting JWTs when present.
+- Keep most storefront routes public (`catalog`, `search`, `home`) while enforcing JWT on a small set of sensitive endpoints (`checkout`, `orders`, `profile`).
+
+**How the flow works (important)**
+For the standard pipeline:
+`ResolveAppContext -> RateLimitByContext -> AuthenticateChannel -> EnforceContextBinding -> InjectAuditContext`
+
+- `AuthenticateChannel` runs, but in `jwt_or_anonymous` it can return anonymous context by design.
+- If a route later requires `app.scope:*`, anonymous requests usually fail with **Missing Required Permission (403)**, not **Authentication required (401)**.
+- `EnforceContextBinding` validates audience/tenant consistency, but does not force login by itself.
 
 **Setup**
-- Configure `auth_mode: jwt_or_anonymous`.
-- Set `public_scopes` to allow safe read-only scopes.
-
-**Steps**
-1. Update the `site` channel to `jwt_or_anonymous`.
-2. Set `public_routes` or `features.allow_anonymous`.
-3. Apply the middleware group to public routes.
+- Configure `site.auth_mode = jwt_or_anonymous`.
+- Keep public-safe scopes in `public_scopes`.
+- Apply `app.auth.required:jwt` only to sensitive route groups.
 
 **Example code**
 ```php
 Route::middleware(['app-context'])->group(function () {
-    Route::get('/site/catalog', fn () => ['ok' => true]);
+    // Public routes (anonymous allowed)
+    Route::get('/site/products', fn () => ['ok' => true]);
+    Route::get('/site/search', fn () => ['ok' => true]);
+
+    // Sensitive routes (JWT required)
+    Route::middleware(['app.auth.required:jwt', 'app.scope:users:write'])->group(function () {
+        Route::post('/site/checkout', fn () => ['ok' => true]);
+        Route::get('/site/orders', fn () => ['ok' => true]);
+    });
 });
 ```
 
 **Notes**
-- If `anonymous_on_invalid_token` is true, invalid JWTs can fall back to anonymous.
+- This pattern avoids maintaining huge `public_routes` lists in large ecommerce apps.
+- If `anonymous_on_invalid_token` is true, invalid tokens can still fallback to anonymous on optional routes.
 
 **Common mistakes**
-- Leaving `public_scopes` empty and expecting scopes to be granted.
-- Forcing JWT auth on routes intended to be public.
+- Expecting `app.auth` alone to force authentication on `jwt_or_anonymous` channels.
+- Using only `app.binding` for auth enforcement (binding != auth requirement).
 
 ---
 
-## Scenario 5: Multi-tenant partner integration
+## Scenario 5: “Why am I getting Missing Required Permission instead of 401?”
+
+**Symptom**
+- Request without token to a route that has `app.scope:...` returns 403 `Missing Required Permission`.
+
+**Root cause**
+- Channel is optional auth (`jwt_or_anonymous`) and request is treated as anonymous.
+- Scope middleware then denies missing permission.
+
+**Fix options**
+1. Add `app.auth.required:jwt` to that route/group (recommended for selective private endpoints).
+2. Move the channel to strict `jwt` if the whole channel should always require token.
+3. Fine-tune `public_routes`/`allow_anonymous` behavior based on channel design.
+
+---
+
+## Scenario 6: Guard error when using `auth:app-context`
+
+**Symptom**
+- `Auth guard [app-context] is not defined.`
+
+**Root cause**
+- Missing guard declaration in `config/auth.php`.
+
+**Fix**
+```php
+'guards' => [
+    'app-context' => [
+        'driver' => 'app-context',
+        'provider' => 'users',
+    ],
+],
+```
+
+Then clear/rebuild config cache:
+```bash
+php artisan optimize:clear
+php artisan config:cache
+```
+
+---
+
+## Scenario 7: Multi-tenant partner integration
 
 **Goal**
 - Enforce tenant binding for partner API keys.

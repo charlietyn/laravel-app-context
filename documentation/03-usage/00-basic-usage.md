@@ -66,6 +66,21 @@ The package registers a guard named `app-context` that resolves users based on t
 ],
 ```
 
+
+## 5) Require JWT only on selected routes (optional-auth channels)
+
+For channels using `jwt_or_anonymous`, you can keep most routes public and enforce authentication only on sensitive endpoints:
+
+```php
+Route::middleware(['app-context'])->group(function () {
+    Route::get('/site/products', fn () => ['ok' => true]); // public
+
+    Route::middleware(['app.auth.required:jwt', 'app.scope:users:write'])->group(function () {
+        Route::post('/site/checkout', fn () => ['ok' => true]);
+    });
+});
+```
+
 ## Evidence
 - File: src/AppContextServiceProvider.php
   - Symbol: AppContextServiceProvider::registerMiddleware()
