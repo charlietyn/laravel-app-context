@@ -33,7 +33,7 @@ Key distinction:
 | `app.binding` | `EnforceContextBinding` | Enforce audience and tenant binding. |
 | `app.audit` | `InjectAuditContext` | Inject context into logs. |
 | `app.scope` | `RequireScope` | Require at least one scope/capability. |
-| `app.auth.required` | `RequireAuthenticatedContext` | Require authenticated context (`any`, `jwt`, or `api_key`). |
+| `app.auth.required` | `RequireAuthenticatedContext` | Require authenticated context (`any`, `jwt`, or `api_key`) and enforce matching credential type for mode-specific routes. |
 | `app.requires` | `RequireAbility` | Require any of the provided abilities. |
 | `app.requires.all` | `RequireAllAbilities` | Require all provided abilities. |
 

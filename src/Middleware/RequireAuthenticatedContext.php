@@ -53,14 +53,14 @@ class RequireAuthenticatedContext
 
     protected function requireJwtAuthentication(AppContext $context): void
     {
-        if ($context->getUserId() === null) {
+        if ($context->getAuthMode() !== 'jwt' || $context->getUserId() === null) {
             throw AuthenticationException::missingToken();
         }
     }
 
     protected function requireApiKeyAuthentication(AppContext $context): void
     {
-        if ($context->getClientId() === null) {
+        if ($context->getAuthMode() !== 'api_key' || $context->getClientId() === null) {
             throw AuthenticationException::missingApiKey();
         }
     }

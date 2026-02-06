@@ -61,6 +61,43 @@ class RequireAuthenticatedContextTest extends TestCase
         $middleware->handle($request, fn () => new Response('ok'), 'api_key');
     }
 
+
+    public function test_rejects_non_jwt_auth_mode_even_when_user_id_exists(): void
+    {
+        $context = new AppContext(
+            appId: 'site',
+            authMode: 'api_key',
+            userId: '99',
+            clientId: 'client-1'
+        );
+
+        $request = Request::create('http://example.com/site/checkout');
+        $request->attributes->set('app_context', $context);
+
+        $middleware = new RequireAuthenticatedContext();
+
+        $this->expectException(AuthenticationException::class);
+        $middleware->handle($request, fn () => new Response('ok'), 'jwt');
+    }
+
+    public function test_rejects_non_api_key_auth_mode_even_when_client_id_exists(): void
+    {
+        $context = new AppContext(
+            appId: 'partner',
+            authMode: 'jwt',
+            userId: '7',
+            clientId: 'client-1'
+        );
+
+        $request = Request::create('http://example.com/partner/orders');
+        $request->attributes->set('app_context', $context);
+
+        $middleware = new RequireAuthenticatedContext();
+
+        $this->expectException(AuthenticationException::class);
+        $middleware->handle($request, fn () => new Response('ok'), 'api_key');
+    }
+
     public function test_rejects_invalid_mode_parameter(): void
     {
         $context = AppContext::fromJwt('site', ['sub' => '1']);
