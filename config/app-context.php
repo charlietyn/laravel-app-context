@@ -110,7 +110,7 @@ return [
     |
     | Available strategies:
     | - 'auto': Auto-detect based on host (localhost=path, domains=subdomain)
-    | - 'path': Path-based only (for development: /api/*, /mobile/*)
+    | - 'path': Path-based only (for development: /admin/*, /mobile/*)
     | - 'subdomain': Subdomain-based only (admin.app.com, mobile.app.com)
     | - 'strict': Both subdomain AND path must match same channel (max security)
     |
@@ -120,7 +120,7 @@ return [
     | - High Security: 'strict'
     |
     */
-    'detection_strategy' => env('APP_CONTEXT_DETECTION', 'auto'),
+    'detection_strategy' => env('APP_CONTEXT_DETECTION', 'path'),
 
     /*
     |--------------------------------------------------------------------------
@@ -135,13 +135,13 @@ return [
     |
     */
     'auto_detection_rules' => [
-        'localhost' => 'path',              // http://localhost/api/login
+        'localhost' => 'path',              // http://localhost/admin/login
         '127.0.0.1' => 'path',              // http://127.0.0.1/mobile/orders
         '*.localhost' => 'subdomain',       // http://api.localhost/users (Docker)
         '*.ngrok.io' => 'path',             // https://abc.ngrok.io/mobile/login
-        '*.ngrok-free.app' => 'path',       // https://abc.ngrok-free.app/api/users
+        '*.ngrok-free.app' => 'path',       // https://abc.ngrok-free.app/admin/users
         '*.test' => 'path',                 // http://myapp.test/mobile/orders (Valet)
-        '*.local' => 'path',                // http://myapp.local/api/login
+        '*.local' => 'path',                // http://myapp.local/admin/login
         // All other hosts default to 'subdomain' (production)
     ],
 
@@ -200,8 +200,11 @@ return [
                 'user:profile:*',
                 'cart:*',
                 'checkout:*',
+                'users:write',
+                'users:read'
             ],
             'rate_limit_profile' => 'mobile',
+            'scope_strategy' => 'channel_global',
             'tenant_mode' => 'multi',
             'features' => [
                 'device_fingerprinting' => true,
@@ -218,7 +221,7 @@ return [
         */
         'admin' => [
             'subdomains' => ['admin', 'dashboard'],
-            'path_prefixes' => ['/api'],
+            'path_prefixes' => ['/admin'],
             'auth_mode' => 'jwt',
             'jwt_audience' => 'admin',
             'allowed_scopes' => [
@@ -228,6 +231,7 @@ return [
                 'settings:*',
             ],
             'rate_limit_profile' => 'admin',
+            'scope_strategy' => 'channel_global',
             'tenant_mode' => 'multi',
             'features' => [
                 'mfa_required' => env('ADMIN_MFA_REQUIRED', false),
@@ -248,7 +252,7 @@ return [
         | For public website / storefront
         */
         'site' => [
-            'subdomains' => ['www', null], // null = root domain
+            'subdomains' => ['www',null], // null = root domain
             'path_prefixes' => ['/site', '/shop'],
             'auth_mode' => 'jwt_or_anonymous',
             'jwt_audience' => 'site',
@@ -257,6 +261,8 @@ return [
                 'cart:*',
                 'checkout:*',
                 'catalog:browse',
+                'users:write',
+                'users:read'
             ],
             'public_scopes' => [
                 'catalog:browse',
@@ -264,6 +270,7 @@ return [
             ],
             'anonymous_on_invalid_token' => false,
             'rate_limit_profile' => 'site',
+            'scope_strategy' => 'channel_global',
             'tenant_mode' => 'single',
             'features' => [
                 'allow_anonymous' => true,
@@ -334,11 +341,11 @@ return [
             'by' => 'user',
             'burst' => '20/s',
             'endpoints' => [
-                'GET:/api/reports/export' => '5/m',
-                'GET:/api/*/export-excel' => '10/m',
-                'GET:/api/*/export-pdf' => '10/m',
-                'DELETE:/api/*/delete-all' => '2/m',
-                'POST:/api/*/update-multiple' => '20/m',
+                'GET:/admin/reports/export' => '5/m',
+                'GET:/admin/{*}/export-excel' => '10/m',
+                'GET:/admin/{*}/export-pdf' => '10/m',
+                'DELETE:/admin/{*}/delete-all' => '2/m',
+                'POST:/api/{*}/update-multiple' => '20/m',
             ],
         ],
 
@@ -403,7 +410,7 @@ return [
         // Ignore protocol (scheme) when validating issuer
         // Useful for reverse proxy scenarios where protocol may change (http/https)
         // When enabled, only the host and path are compared, ignoring the scheme
-        'ignore_issuer_scheme' => env('JWT_IGNORE_ISSUER_SCHEME', false),
+        'ignore_issuer_scheme' => env('JWT_IGNORE_ISSUER_SCHEME', true),
 
         // Verify audience claim
         'verify_aud' => env('JWT_VERIFY_AUD', true),
@@ -538,6 +545,7 @@ return [
         'names' => [
             'login',
             'register',
+            'api.root',
             'auth.login',
             'auth.register',
             'password.reset',
