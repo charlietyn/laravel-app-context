@@ -6,6 +6,7 @@ namespace Ronu\AppContext\Scopes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Ronu\AppContext\Services\Tenancy\TenantContextManager;
 
@@ -82,7 +83,7 @@ class TenantScope implements Scope
 
         // Model::forTenant($tenantId)
         $builder->macro('forTenant', function (Builder $builder, ?string $tenantId) {
-            if (!auth()->user()?->is_superuser) {
+            if (!$this->hasSuperuserPrivileges()) {
                 throw new \RuntimeException('forTenant() requires superuser privileges');
             }
 
@@ -100,6 +101,38 @@ class TenantScope implements Scope
                 ->withoutGlobalScope(TenantScope::class)
                 ->where($model->getTable() . '.' . $column, '=', $tenantId);
         });
+    }
+
+    /**
+     * Determine whether the current authenticated user can execute cross-tenant queries.
+     */
+    private function hasSuperuserPrivileges(): bool
+    {
+        $user = auth()->user();
+
+        if ($user === null) {
+            return false;
+        }
+
+        $resolver = config('tenancy.authorization.superuser_resolver');
+
+        if (is_callable($resolver)) {
+            return (bool) $resolver($user);
+        }
+
+        if (method_exists($user, 'isSuperuser')) {
+            return (bool) $user->isSuperuser();
+        }
+
+        if (method_exists($user, 'getAttribute')) {
+            $value = $user->getAttribute('is_superuser');
+
+            if ($value !== null) {
+                return (bool) $value;
+            }
+        }
+
+        return (bool) Arr::get((array) $user, 'is_superuser', false);
     }
 
     /**

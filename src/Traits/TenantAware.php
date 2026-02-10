@@ -4,6 +4,7 @@ namespace Ronu\AppContext\Traits;
 
 
 
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Ronu\AppContext\Scopes\TenantScope;
 use Ronu\AppContext\Services\Tenancy\TenantContextManager;
@@ -174,7 +175,7 @@ trait TenantAware
      */
     public function scopeWithoutTenant($query)
     {
-        if (!auth()->user()?->is_superuser) {
+        if (!$this->hasSuperuserPrivileges()) {
             throw new \RuntimeException('withoutTenant() requires superuser privileges.');
         }
 
@@ -190,5 +191,37 @@ trait TenantAware
         $manager = app(TenantContextManager::class);
 
         return $manager->isTenancyEnabled();
+    }
+
+    /**
+     * Determine whether the current authenticated user can execute cross-tenant queries.
+     */
+    private function hasSuperuserPrivileges(): bool
+    {
+        $user = auth()->user();
+
+        if ($user === null) {
+            return false;
+        }
+
+        $resolver = config('tenancy.authorization.superuser_resolver');
+
+        if (is_callable($resolver)) {
+            return (bool) $resolver($user);
+        }
+
+        if (method_exists($user, 'isSuperuser')) {
+            return (bool) $user->isSuperuser();
+        }
+
+        if (method_exists($user, 'getAttribute')) {
+            $value = $user->getAttribute('is_superuser');
+
+            if ($value !== null) {
+                return (bool) $value;
+            }
+        }
+
+        return (bool) Arr::get((array) $user, 'is_superuser', false);
     }
 }
