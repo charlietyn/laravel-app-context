@@ -132,4 +132,19 @@ return [
         'alert_violations' => env('TENANCY_ALERT_VIOLATIONS', true),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Authorization
+    |--------------------------------------------------------------------------
+    |
+    | Optional callback used to determine whether the authenticated user can
+    | execute cross-tenant queries (forTenant/withoutTenant).
+    |
+    | Signature: fn (mixed $user): bool
+    |
+    */
+    'authorization' => [
+        'superuser_resolver' => null,
+    ],
+
 ];
