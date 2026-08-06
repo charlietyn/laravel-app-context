@@ -13,3 +13,4 @@ Thumbs.db
 composer.lock
 phpunit.xml
 .php-cs-fixer.cache
+./**/graphify-out

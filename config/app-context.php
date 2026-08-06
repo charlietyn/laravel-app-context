@@ -392,11 +392,25 @@ return [
         // Expected issuer (usually your app URL)
         'issuer' =>env('APP_CONTEXT_DEV', 'local')!=='local'?env('JWT_ISSUER', env('APP_URL', 'http://localhost')):'http://localhost',
 
-        // Token TTL in seconds
-        'ttl' => env('JWT_TTL', 3600), // 1 hour
+        // Token TTL in seconds.
+        //
+        // JWT_TTL and JWT_REFRESH_TTL are owned by config/jwt.php
+        // (php-open-source-saver/jwt-auth), which reads them in MINUTES. This
+        // package works in seconds, so the conversion happens here. Declaring a
+        // second pair of env vars instead would let the two drift apart
+        // silently: a host that sets JWT_REFRESH_TTL would move the minting
+        // side while this side kept the old window.
+        'ttl' => env('JWT_TTL', 60) * 60, // 60 min = 1 hour
 
-        // Refresh token TTL in seconds
-        'refresh_ttl' => env('JWT_REFRESH_TTL', 1209600), // 14 days
+        // Refresh token TTL in seconds. ContextTokenIssuer mints refresh tokens
+        // with exactly this lifetime and advertises it as `refresh_expires_in`,
+        // so the value a client is told is the value the token really has.
+        'refresh_ttl' => env('JWT_REFRESH_TTL', 20160) * 60, // 20160 min = 14 days
+
+        // Request headers consulted when minting a token, for the login request
+        // where the context cannot supply these yet.
+        'device_header' => env('JWT_DEVICE_HEADER', 'X-Device-Id'),
+        'tenant_header' => env('JWT_TENANT_HEADER', 'X-Tenant-Id'),
 
         // Enable token blacklist (requires cache/Redis)
         'blacklist_enabled' => env('JWT_BLACKLIST_ENABLED', true),

@@ -8,6 +8,7 @@ use Ronu\AppContext\Auth\Authenticators\AnonymousAuthenticator;
 use Ronu\AppContext\Auth\Authenticators\ApiKeyAuthenticator;
 use Ronu\AppContext\Auth\Authenticators\JwtAuthenticator;
 use Ronu\AppContext\Auth\Guards\AppContextGuard;
+use Ronu\AppContext\Auth\Issuers\ContextTokenIssuer;
 use Ronu\AppContext\Auth\Verifiers\ApiKeyVerifier;
 use Ronu\AppContext\Auth\Verifiers\JwtVerifier;
 use Ronu\AppContext\Commands\RoutesByChannel;
@@ -16,6 +17,7 @@ use Ronu\AppContext\Context\ContextResolver;
 use Ronu\AppContext\Contracts\AuthenticatorInterface;
 use Ronu\AppContext\Contracts\ClientRepositoryInterface;
 use Ronu\AppContext\Contracts\ContextResolverInterface;
+use Ronu\AppContext\Contracts\ContextTokenIssuerInterface;
 use Ronu\AppContext\Middleware\AuthenticateChannel;
 use Ronu\AppContext\Middleware\EnforceContextBinding;
 use Ronu\AppContext\Middleware\InjectAuditContext;
@@ -33,6 +35,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
+use PHPOpenSourceSaver\JWTAuth\JWTAuth;
 
 class AppContextServiceProvider extends ServiceProvider
 {
@@ -51,6 +54,7 @@ class AppContextServiceProvider extends ServiceProvider
         $this->registerAuthenticators();
         $this->registerScopeChecker();
         $this->registerAppContext();
+        $this->registerTokenIssuer();
         $this->commands([RoutesByChannel::class]);
     }
 
@@ -210,6 +214,29 @@ class AppContextServiceProvider extends ServiceProvider
         });
 
         $this->app->alias(AppContext::class, 'app-context');
+    }
+
+    /**
+     * Register the context-bound token issuer.
+     *
+     * Bound only when php-open-source-saver/jwt-auth is installed: the package
+     * verifies tokens through several backends, and a host using API keys or
+     * anonymous access alone has no reason to pull in a JWT minting stack.
+     * The binding is overridable through `app-context.jwt.issuer_class`.
+     */
+    protected function registerTokenIssuer(): void
+    {
+        if (! class_exists(JWTAuth::class)) {
+            return;
+        }
+
+        $implementation = $this->app['config']->get(
+            'app-context.jwt.issuer_class',
+            ContextTokenIssuer::class
+        );
+
+        $this->app->singleton(ContextTokenIssuerInterface::class, $implementation);
+        $this->app->alias(ContextTokenIssuerInterface::class, 'app-context.token-issuer');
     }
 
     /**
