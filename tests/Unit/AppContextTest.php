@@ -163,26 +163,27 @@ class AppContextTest extends TestCase
         $this->assertFalse($apiKeyContext->hasAbility('partner:orders:delete'));
     }
 
-    public function test_get_identifier(): void
+    public function test_gets_authentication_identifiers(): void
     {
         $jwtContext = AppContext::fromJwt('admin', ['sub' => 'user_123']);
         $apiKeyContext = AppContext::fromApiKey('partner', 'client_123', []);
         $anonContext = AppContext::anonymous('site');
 
-        $this->assertEquals('user_123', $jwtContext->getIdentifier());
-        $this->assertEquals('client_123', $apiKeyContext->getIdentifier());
-        $this->assertNull($anonContext->getIdentifier());
+        $this->assertEquals('user_123', $jwtContext->getUserId());
+        $this->assertEquals('client_123', $apiKeyContext->getClientId());
+        $this->assertNull($anonContext->getUserId());
+        $this->assertNull($anonContext->getClientId());
     }
 
     public function test_get_rate_limit_key(): void
     {
-        $jwtContext = (AppContext::fromJwt('admin', ['sub' => '123']))->withIpAddress('1.2.3.4');
-        $apiKeyContext = (AppContext::fromApiKey('partner', 'client_1', []))->withIpAddress('1.2.3.4');
-        $anonContext = (AppContext::anonymous('site'))->withIpAddress('1.2.3.4');
+        $jwtContext = AppContext::fromJwt('admin', ['sub' => '123'], '1.2.3.4');
+        $apiKeyContext = AppContext::fromApiKey('partner', 'client_1', [], ipAddress: '1.2.3.4');
+        $anonContext = AppContext::anonymous('site', '1.2.3.4');
 
-        $this->assertEquals('admin|user:123', $jwtContext->getRateLimitKey());
-        $this->assertEquals('partner|client:client_1', $apiKeyContext->getRateLimitKey());
-        $this->assertEquals('site|ip:1.2.3.4', $anonContext->getRateLimitKey());
+        $this->assertEquals('admin:user:123', $jwtContext->getRateLimitKey());
+        $this->assertEquals('partner:client:client_1', $apiKeyContext->getRateLimitKey());
+        $this->assertEquals('site:ip:1.2.3.4', $anonContext->getRateLimitKey());
     }
 
     public function test_to_array(): void
@@ -206,10 +207,10 @@ class AppContextTest extends TestCase
 
     public function test_to_log_context(): void
     {
-        $context = (AppContext::fromJwt('admin', [
+        $context = AppContext::fromJwt('admin', [
             'sub' => '123',
             'tid' => 'tenant_1',
-        ]))->withIpAddress('1.2.3.4');
+        ], '1.2.3.4');
 
         $logContext = $context->toLogContext();
 
@@ -217,28 +218,27 @@ class AppContextTest extends TestCase
         $this->assertEquals('admin', $logContext['app_id']);
         $this->assertEquals('123', $logContext['user_id']);
         $this->assertEquals('tenant_1', $logContext['tenant_id']);
-        $this->assertEquals('1.2.3.4', $logContext['ip']);
+        $this->assertEquals('1.2.3.4', $logContext['ip_address']);
         // Should NOT have scopes (compact format)
         $this->assertArrayNotHasKey('scopes', $logContext);
     }
 
-    public function test_with_meta(): void
+    public function test_with_metadata(): void
     {
         $context = AppContext::fromChannel('mobile', 'jwt');
-        $newContext = $context->withMeta(['custom_key' => 'custom_value']);
+        $newContext = $context->withMetadata(['custom_key' => 'custom_value']);
 
         // Original unchanged
-        $this->assertNull($context->getMeta('custom_key'));
+        $this->assertNull($context->getMetadataValue('custom_key'));
 
         // New has value
-        $this->assertEquals('custom_value', $newContext->getMeta('custom_key'));
+        $this->assertEquals('custom_value', $newContext->getMetadataValue('custom_key'));
     }
 
-    public function test_request_id_is_ulid(): void
+    public function test_request_id_uses_timestamp_and_random_suffix(): void
     {
         $context = AppContext::fromChannel('mobile', 'jwt');
 
-        // ULID is 26 characters
-        $this->assertEquals(26, strlen($context->getRequestId()));
+        $this->assertMatchesRegularExpression('/^\d{14}-[a-f0-9]{16}$/', $context->getRequestId());
     }
 }
