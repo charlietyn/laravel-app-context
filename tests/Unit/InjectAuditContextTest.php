@@ -29,7 +29,7 @@ class InjectAuditContextTest extends TestCase
         $middleware = new InjectAuditContext();
         $middleware->handle($request, fn () => new Response('ok'));
 
-        Log::shouldHaveReceived('shareContext')->never();
+        Log::shouldNotHaveReceived('shareContext');
     }
 
     public function test_audit_enabled_for_channel_shares_context(): void

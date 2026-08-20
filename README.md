@@ -10,9 +10,9 @@
 
 ## Requirements
 
-- PHP 8.2+
-- Laravel 11.x or 12.x
-- `php-open-source-saver/jwt-auth` 2.x
+- PHP 8.2+ for Laravel 11/12; PHP 8.3+ for Laravel 13
+- Laravel 11.x, 12.x, or 13.x
+- `php-open-source-saver/jwt-auth` 2.8.3+ (2.9+ on Laravel 13)
 
 ## Installation
 
