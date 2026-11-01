@@ -107,9 +107,9 @@ final class EloquentClientRepository implements ClientRepositoryInterface
         $this->appModelClass = $config['app_model'] ?? null;
         $this->appKeyModelClass = $config['app_key_model'] ?? null;
         $this->table = $config['table'] ?? 'api_clients';
-        $this->appsTable = $config['apps_table'] ?? 'api_apps';
-        $this->appKeysTable = $config['app_keys_table'] ?? 'api_app_keys';
-        $this->connection = $config['connection'] ?? null;
+        $appsTable = $config['apps_table'] ?? 'api_apps';
+        $appKeysTable = $config['app_keys_table'] ?? 'api_app_keys';
+        $connection = $config['connection'] ?? null;
         $this->hashAlgorithm = $config['hash_algorithm'] ?? 'argon2id';
         $this->prefixLength = $config['prefix_length'] ?? 10;
         $this->keyLength = $config['key_length'] ?? 32;
@@ -121,15 +121,19 @@ final class EloquentClientRepository implements ClientRepositoryInterface
 
         if ($this->appModelClass !== null) {
             $appModel = $this->instantiateModel($this->appModelClass);
-            $this->appsTable = $appModel->getTable();
-            $this->connection ??= $appModel->getConnectionName();
+            $appsTable = $appModel->getTable();
+            $connection ??= $appModel->getConnectionName();
         }
 
         if ($this->appKeyModelClass !== null) {
             $keyModel = $this->instantiateModel($this->appKeyModelClass);
-            $this->appKeysTable = $keyModel->getTable();
-            $this->connection ??= $keyModel->getConnectionName();
+            $appKeysTable = $keyModel->getTable();
+            $connection ??= $keyModel->getConnectionName();
         }
+
+        $this->appsTable = $appsTable;
+        $this->appKeysTable = $appKeysTable;
+        $this->connection = $connection;
     }
 
     /**
