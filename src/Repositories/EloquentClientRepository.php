@@ -99,6 +99,9 @@ final class EloquentClientRepository implements ClientRepositoryInterface
      */
     private readonly bool $asyncTracking;
 
+    /** @var array<string,bool> Columnas opcionales verificadas en la conexión de este repositorio. */
+    private array $softDeleteColumns = [];
+
     /**
      * @param array<string, mixed> $config Repository configuration
      */
@@ -142,10 +145,9 @@ final class EloquentClientRepository implements ClientRepositoryInterface
     public function findByAppCode(string $appCode, ?string $keyPrefix = null): ?ClientInfo
     {
         if ($this->useSeparateKeysTable) {
-            $appRecord = $this->appQuery()
+            $appRecord = $this->withoutDeleted($this->appQuery(), $this->appsTable)
                 ->where('app_code', $appCode)
                 ->where('is_active', true)
-                ->whereNull('deleted_at')
                 ->first();
 
             if ($appRecord === null) {
@@ -171,10 +173,9 @@ final class EloquentClientRepository implements ClientRepositoryInterface
             return $this->toClientInfo($appRecord, $keyRecord);
         }
 
-        $record = $this->query()
+        $record = $this->withoutDeleted($this->query(), $this->table)
             ->where('app_code', $appCode)
             ->where('is_active', true)
-            ->whereNull('deleted_at')
             ->first();
 
         if ($record === null) {
@@ -208,9 +209,8 @@ final class EloquentClientRepository implements ClientRepositoryInterface
     {
         $updateFn = function () use ($appCode, $ip, $keyPrefix, $userAgent) {
             if ($this->useSeparateKeysTable) {
-                $appRecord = $this->appQuery()
+                $appRecord = $this->withoutDeleted($this->appQuery(), $this->appsTable)
                     ->where('app_code', $appCode)
-                    ->whereNull('deleted_at')
                     ->first();
 
                 if ($appRecord === null || $keyPrefix === null) {
@@ -354,7 +354,7 @@ final class EloquentClientRepository implements ClientRepositoryInterface
             return;
         }
 
-        $query = $this->query()->whereNull('deleted_at');
+        $query = $this->withoutDeleted($this->query(), $this->table);
 
         if (isset($filters['channel'])) {
             $query->where('channel', $filters['channel']);
@@ -385,9 +385,8 @@ final class EloquentClientRepository implements ClientRepositoryInterface
     public function findByAppCodeIncludingInactive(string $appCode): ?ClientInfo
     {
         if ($this->useSeparateKeysTable) {
-            $appRecord = $this->appQuery()
+            $appRecord = $this->withoutDeleted($this->appQuery(), $this->appsTable)
                 ->where('app_code', $appCode)
-                ->whereNull('deleted_at')
                 ->first();
 
             if ($appRecord === null) {
@@ -406,9 +405,8 @@ final class EloquentClientRepository implements ClientRepositoryInterface
             return $this->toClientInfo($appRecord, $keyRecord);
         }
 
-        $record = $this->query()
+        $record = $this->withoutDeleted($this->query(), $this->table)
             ->where('app_code', $appCode)
-            ->whereNull('deleted_at')
             ->first();
 
         if ($record === null) {
@@ -432,6 +430,14 @@ final class EloquentClientRepository implements ClientRepositoryInterface
         }
 
         return $query;
+    }
+
+    /** Conserva el filtro de seguridad cuando la tabla declara borrado lógico. */
+    private function withoutDeleted(\Illuminate\Database\Query\Builder $query, string $table): \Illuminate\Database\Query\Builder
+    {
+        $this->softDeleteColumns[$table] ??= $query->getConnection()->getSchemaBuilder()->hasColumn($table, 'deleted_at');
+
+        return $this->softDeleteColumns[$table] ? $query->whereNull('deleted_at') : $query;
     }
 
     /**
@@ -653,9 +659,8 @@ final class EloquentClientRepository implements ClientRepositoryInterface
      */
     private function revokeUsingSeparateTables(string $appCode): bool
     {
-        $appRecord = $this->appQuery()
+        $appRecord = $this->withoutDeleted($this->appQuery(), $this->appsTable)
             ->where('app_code', $appCode)
-            ->whereNull('deleted_at')
             ->first();
 
         if ($appRecord === null) {
@@ -688,7 +693,7 @@ final class EloquentClientRepository implements ClientRepositoryInterface
      */
     private function allUsingSeparateTables(array $filters = []): iterable
     {
-        $query = $this->appQuery()->whereNull('deleted_at');
+        $query = $this->withoutDeleted($this->appQuery(), $this->appsTable);
 
         if (!($filters['include_inactive'] ?? false)) {
             $query->where('is_active', true);
